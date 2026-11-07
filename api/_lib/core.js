@@ -9,6 +9,9 @@ export const KEYS = {
   pass: 'zc:admin:pass',
   secret: 'zc:admin:secret',
   fail: (ip) => `zc:fail:${ip}`,
+  bot: 'zc:bot',
+  gallery: 'zc:gallery',
+  img: (id) => `zc:img:${id}`,
 };
 
 export const DEFAULT_CONFIG = {
@@ -51,6 +54,12 @@ export const DEFAULT_CONFIG = {
     goal: 10,
     reward: 'Corte gratis',
     text: 'Cada visita suma un sello. Cuando completás la tarjeta, el próximo corte va por la casa.',
+  },
+  reminders: {
+    enabled: true,
+    hoursBefore: 3,
+    prefix: '549',
+    template: '¡Hola {nombre}! Te recordamos tu turno en {barberia} {cuando} a las {hora} ({servicio}). Si no podés venir, cancelalo en {sitio} con el código {codigo}. ¡Te esperamos!',
   },
   timezone: 'America/Argentina/Buenos_Aires',
 };
@@ -157,14 +166,14 @@ export function weekday(s) {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-export function nowLocal(tz) {
+export function nowLocal(tz, at = new Date()) {
   let parts;
   try {
     parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-    }).formatToParts(new Date());
+    }).formatToParts(at);
   } catch {
-    return nowLocal(DEFAULT_CONFIG.timezone);
+    return nowLocal(DEFAULT_CONFIG.timezone, at);
   }
   const g = (t) => parts.find((p) => p.type === t).value;
   return { date: `${g('year')}-${g('month')}-${g('day')}`, minutes: Number(g('hour')) * 60 + Number(g('minute')) };
@@ -187,6 +196,7 @@ export function normalizeConfig(c) {
     schedule: { ...d.schedule, ...sch, week: { ...d.schedule.week, ...(sch.week || {}) } },
     closedDates: Array.isArray(c.closedDates) ? c.closedDates : [],
     loyalty: { ...d.loyalty, ...(c.loyalty || {}) },
+    reminders: { ...d.reminders, ...(c.reminders || {}) },
     timezone: c.timezone || d.timezone,
   };
 }
@@ -257,6 +267,12 @@ export function sanitizeConfig(input) {
       goal: clampInt(c.loyalty.goal, 2, 30, 10),
       reward: clean(c.loyalty.reward, 60) || 'Corte gratis',
       text: clean(c.loyalty.text, 320),
+    },
+    reminders: {
+      enabled: c.reminders.enabled !== false,
+      hoursBefore: [1, 2, 3, 6, 12, 24].includes(Number(c.reminders.hoursBefore)) ? Number(c.reminders.hoursBefore) : 3,
+      prefix: String(c.reminders.prefix || '').replace(/\D/g, '').slice(0, 5),
+      template: clean(c.reminders.template, 600) || DEFAULT_CONFIG.reminders.template,
     },
     timezone: validTz(c.timezone) ? c.timezone : DEFAULT_CONFIG.timezone,
   };

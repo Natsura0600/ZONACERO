@@ -10,6 +10,9 @@ import {
 import {
   requireAdmin, hasPassword, verifyPassword, setupPassword, changePassword, makeToken, loginGuard,
 } from './_lib/auth.js';
+import { renderTemplate, runReminders, lastRun, cronSecretSet } from './_lib/reminders.js';
+import { linkStatus, startLink, unlink, sendMessages } from './_lib/wa.js';
+import { listGallery, addPhoto, saveGallery, deletePhoto } from './_lib/gallery.js';
 
 const STATUSES = ['confirmado', 'atendido', 'ausente'];
 
@@ -76,6 +79,51 @@ export default wrap(async (req, res) => {
   switch (action) {
     case 'getConfig':
       return send(res, 200, { config: cfg, today: nowLocal(cfg.timezone).date });
+
+    case 'waStatus': {
+      const sample = { name: 'Juan Pérez', time: '10:30', serviceName: (cfg.services[0] || {}).name || 'Corte', barberName: (cfg.barbers[0] || {}).name, code: 'K7P2', date: addDays(nowLocal(cfg.timezone).date, 1) };
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+      const draft = body.reminders ? { ...cfg, reminders: { ...cfg.reminders, template: clean(body.reminders.template, 600) || cfg.reminders.template } } : cfg;
+      return send(res, 200, {
+        link: await linkStatus(),
+        cron: { secretSet: cronSecretSet(), lastRun: await lastRun() },
+        preview: renderTemplate(draft, sample, nowLocal(cfg.timezone), host ? `https://${host}` : ''),
+      });
+    }
+
+    case 'waLink': {
+      const number = body.number ? String(body.number).replace(/\D/g, '') : '';
+      if (body.number && (number.length < 10 || number.length > 15)) throw new HttpError(400, 'Escribí el número completo con código de país, por ejemplo 5491123456789.');
+      return send(res, 200, { link: await startLink({ pairNumber: number || undefined }) });
+    }
+
+    case 'waUnlink':
+      await unlink();
+      return send(res, 200, { link: await linkStatus() });
+
+    case 'waTest': {
+      const phone = normPhone(body.phone);
+      if (!phone) throw new HttpError(400, 'Revisá el número.');
+      const to = phone.length >= 11 ? phone : (cfg.reminders.prefix || '') + phone;
+      const [r] = await sendMessages([{ key: 'test', phone: to, text: `Mensaje de prueba de ${cfg.business.name}: los recordatorios por WhatsApp funcionan.` }]);
+      if (!r.ok) throw new HttpError(502, `No se pudo enviar: ${r.error}.`);
+      return send(res, 200, { ok: true });
+    }
+
+    case 'waRunNow':
+      return send(res, 200, { run: await runReminders(cfg, req, { source: 'panel' }) });
+
+    case 'gallery':
+      return send(res, 200, { gallery: await listGallery() });
+
+    case 'galleryAdd':
+      return send(res, 200, { item: await addPhoto(body) });
+
+    case 'gallerySave':
+      return send(res, 200, { gallery: await saveGallery(body.items) });
+
+    case 'galleryDelete':
+      return send(res, 200, { gallery: await deletePhoto(body.id) });
 
     case 'pushKey':
       return send(res, 200, { publicKey: await vapidPublicKey(), devices: await listDevices() });

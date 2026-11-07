@@ -19,6 +19,7 @@
     <div class="wrap top__in">
       <a class="brand" href="#inicio" id="brand-small">Zona Cero</a>
       <nav class="top__nav" aria-label="Secciones">
+        <a href="#trabajos" data-gallery hidden>Trabajos</a>
         <a href="#precios">Precios</a>
         <a href="#turno">Turnos</a>
         <a href="#tarjeta" data-loyalty>Mi tarjeta</a>
@@ -67,6 +68,16 @@
           <li class="board__row board__row--skeleton"><span class="board__name">Corte + barba</span></li>
           <li class="board__row board__row--skeleton"><span class="board__name">Barba</span></li>
         </ul>
+      </div>
+    </section>
+
+    <section class="gallery" id="trabajos" data-gallery hidden>
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title">Trabajos</h2>
+          <p class="section-note">Cortes que salieron de la silla. Tocá una foto para verla grande.</p>
+        </div>
+        <div class="shots" id="shots"></div>
       </div>
     </section>
 
@@ -187,6 +198,16 @@
       <div class="foot__links" id="foot-links"></div>
     </div>
   </footer>
+
+  <dialog class="lightbox" id="lightbox" aria-label="Foto">
+    <figure class="lightbox__fig">
+      <img id="lb-img" alt="">
+      <figcaption id="lb-cap"></figcaption>
+    </figure>
+    <button class="lb-btn lb-prev" type="button" data-lb="-1" aria-label="Foto anterior">‹</button>
+    <button class="lb-btn lb-next" type="button" data-lb="1" aria-label="Foto siguiente">›</button>
+    <button class="lb-close" type="button" data-lb="close" aria-label="Cerrar">×</button>
+  </dialog>
 
   <script src="/js/site.js" defer></script>
 </body>

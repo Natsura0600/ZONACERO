@@ -153,7 +153,7 @@
     $('#app').hidden = false;
     $('#bar-brand').textContent = S.cfg.business.name;
     const fromHash = location.hash.slice(1);
-    switchTab(['agenda', 'clientes', 'servicios', 'horarios', 'sitio'].includes(fromHash) ? fromHash : 'agenda');
+    switchTab(['agenda', 'clientes', 'servicios', 'horarios', 'galeria', 'sitio'].includes(fromHash) ? fromHash : 'agenda');
     updateSavebar();
   }
 
@@ -173,7 +173,8 @@
     if (S.tab === 'clientes') S.clients ? renderClients() : loadClients();
     if (S.tab === 'servicios') renderServices();
     if (S.tab === 'horarios') renderHorarios();
-    if (S.tab === 'sitio') { renderSitio(); renderNotify(); }
+    if (S.tab === 'galeria') loadGallery();
+    if (S.tab === 'sitio') { renderSitio(); renderNotify(); renderReminders(); }
   }
 
   // ---------- guardar configuración ----------
@@ -295,6 +296,14 @@
     }).join('');
   }
 
+  function reminderLabel(e) {
+    const r = e.reminder;
+    if (!r) return '';
+    if (r.status === 'sent') return '<span class="cell__rem is-sent">✓ Recordatorio enviado</span>';
+    if (r.status === 'failed') return `<span class="cell__rem is-failed" title="${esc(r.error || '')}">Recordatorio no enviado${r.error ? ': ' + esc(r.error) : ''}</span>`;
+    return '<span class="cell__rem">Reintentando recordatorio…</span>';
+  }
+
   function freeCell(t, b, multi, past) {
     return `<div class="cell cell--free">
       <span>${multi ? `<span class="cell__who">${esc(b.name)}</span> · ` : ''}Libre</span>
@@ -338,6 +347,7 @@
         ${multi ? `<span>${esc(e.barberName)}</span>` : ''}
         ${wa ? `<a href="${wa}" target="_blank" rel="noopener">${esc(e.phoneRaw || e.phone)}</a>` : `<span>${esc(e.phoneRaw || e.phone)}</span>`}
         <span>Código <span class="cell__code">${esc(e.code)}</span></span>
+        ${reminderLabel(e)}
         <span>${e.source === 'panel' ? 'Cargado por vos' : 'Reservó online'}</span>
       </div>
       <div class="cell__actions">${actions}</div>
@@ -833,6 +843,242 @@
       $('#pw-next').value = '';
       toast('Contraseña cambiada. Se cerró la sesión en otros dispositivos.');
     } catch (e) { fail(e); }
+  });
+
+  // ---------- RECORDATORIOS ----------
+  const VARS = ['nombre', 'cuando', 'hora', 'servicio', 'barbero', 'barberia', 'codigo', 'sitio'];
+  let previewTimer;
+  const ago = (iso) => {
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return 'recién';
+    if (m < 60) return `hace ${m} min`;
+    if (m < 1440) return `hace ${Math.round(m / 60)} h`;
+    return `hace ${Math.round(m / 1440)} días`;
+  };
+
+  function renderReminders() {
+    const r = S.cfg.reminders;
+    $('#rm-form').innerHTML = `
+      <label class="field field--check"><input type="checkbox" data-bind="reminders.enabled" data-type="bool" ${r.enabled ? 'checked' : ''}><span>Mandar recordatorios automáticos</span></label>
+      <div class="grid3">
+        <label class="field"><span>Cuándo</span>${selectHtml('reminders.hoursBefore', r.hoursBefore, [[1, '1 hora antes'], [2, '2 horas antes'], [3, '3 horas antes'], [6, '6 horas antes'], [12, '12 horas antes'], [24, '1 día antes']])}</label>
+        <label class="field"><span>Código de país para WhatsApp</span><input data-bind="reminders.prefix" inputmode="numeric" maxlength="5" value="${esc(r.prefix)}" placeholder="549"></label>
+      </div>
+      <label class="field"><span>Mensaje</span><textarea id="rm-template" data-bind="reminders.template" maxlength="600">${esc(r.template)}</textarea></label>
+      <div class="field"><span>Tocá para agregar un dato al mensaje</span><div class="vars">${VARS.map((v) => `<button type="button" class="var" data-var="${v}">{${v}}</button>`).join('')}</div></div>
+      <p class="muted">No se mandan entre las 22 y las 8 (los que caen en ese horario salen a las 8). Si el cliente reservó hace poco, no se le recuerda.</p>`;
+    refreshBot();
+  }
+
+  let waLinking = false;
+  let waPoll = null;
+
+  async function refreshBot() {
+    try {
+      const st = await api('waStatus', { reminders: { template: S.cfg.reminders.template } });
+      $('#rm-preview').textContent = st.preview;
+      renderWa(st);
+      return st;
+    } catch (e) { $('#wa-status').textContent = e.message; return null; }
+  }
+
+  function renderWa(st) {
+    const l = st.link;
+    const el = $('#wa-status');
+    el.classList.toggle('is-on', l.linked);
+    el.classList.toggle('is-warn', l.state === 'logged_out' || l.state === 'error');
+    const waiting = waLinking || l.state === 'waiting';
+    if (l.linked) el.textContent = `Conectado al WhatsApp +${l.number || ''}. Los recordatorios salen desde ese número.`;
+    else if (waiting && l.pairingCode) el.textContent = 'Escribí este código en WhatsApp → Dispositivos vinculados → Vincular con número de teléfono:';
+    else if (waiting && l.qr) el.textContent = 'Escaneá el código con el WhatsApp de la barbería.';
+    else if (waiting) el.textContent = 'Generando el código…';
+    else if (l.state === 'expired') el.textContent = 'El código venció antes de escanearlo. Generá uno nuevo.';
+    else if (l.state === 'logged_out' || l.state === 'error') el.textContent = l.error || 'Se desconectó WhatsApp. Volvé a vincularlo.';
+    else el.textContent = 'WhatsApp todavía no está vinculado.';
+
+    $('#wa-qr').hidden = !(waiting && l.qr && !l.pairingCode);
+    if (waiting && l.qr) $('#wa-qr-img').src = l.qr;
+    $('#wa-code').hidden = !(waiting && l.pairingCode);
+    $('#wa-code').textContent = l.pairingCode ? l.pairingCode.replace(/(.{4})(.{4})/, '$1-$2') : '';
+    $('#wa-actions').innerHTML = l.linked
+      ? '<button class="btn btn--ghost btn--sm" type="button" data-wa="test">Mandar mensaje de prueba</button><button class="btn btn--ghost btn--sm" type="button" data-wa="run">Revisar y mandar ahora</button><button class="btn btn--danger btn--sm" type="button" data-wa="unlink">Desvincular</button>'
+      : waiting ? '' : '<button class="btn btn--accent btn--sm" type="button" data-wa="link">Vincular WhatsApp</button><button class="btn btn--ghost btn--sm" type="button" data-wa="pair">Prefiero un código</button>';
+    if (l.linked || waiting) $('#wa-pair').hidden = true;
+    if (!l.linked) $('#wa-test').hidden = true;
+
+    const c = st.cron;
+    const lr = c.lastRun;
+    $('#wa-cron').textContent = !c.secretSet
+      ? 'Para que se manden solos falta la variable CRON_SECRET en Vercel (está en el README).'
+      : lr ? `Última revisión: ${ago(lr.at)} (${lr.source === 'panel' ? 'manual' : 'automática'}) · ${lr.sent} ${lr.sent === 1 ? 'enviado' : 'enviados'}${lr.failed ? ` · ${lr.failed} con error` : ''}.`
+        : 'Todavía no corrió ninguna revisión automática.';
+  }
+
+  async function startWaLink(number) {
+    waLinking = true;
+    renderWa({ link: { state: 'waiting' }, cron: { secretSet: true, lastRun: null } });
+    clearInterval(waPoll);
+    waPoll = setInterval(refreshBot, 2500);
+    try {
+      await api('waLink', number ? { number } : {});
+    } catch (e) { fail(e); }
+    waLinking = false;
+    clearInterval(waPoll);
+    const st = await refreshBot();
+    if (st && st.link.linked) toast('¡WhatsApp vinculado! Ya quedó listo.');
+  }
+
+  $('#wa').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-wa]');
+    if (!b) return;
+    const act = b.dataset.wa;
+    if (act === 'link') return startWaLink();
+    if (act === 'pair') { $('#wa-pair').hidden = false; $('#wa-pair-number').focus(); return; }
+    if (act === 'test') { $('#wa-test').hidden = false; $('#wa-test-phone').focus(); return; }
+    b.disabled = true;
+    try {
+      if (act === 'unlink') {
+        if (!confirm('¿Desvincular el WhatsApp? Los recordatorios dejan de salir hasta que lo vuelvas a vincular.')) { b.disabled = false; return; }
+        await api('waUnlink');
+        toast('WhatsApp desvinculado.');
+      }
+      if (act === 'run') {
+        const { run } = await api('waRunNow');
+        toast(run.found ? `Listo: ${run.sent} de ${run.found} recordatorios enviados.` : 'No hay recordatorios para mandar ahora.');
+      }
+    } catch (e) { fail(e); }
+    refreshBot();
+  });
+  $('#wa-pair').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const n = $('#wa-pair-number').value.replace(/\D/g, '');
+    if (n.length < 10) { toast('Escribí el número completo con código de país, por ejemplo 5491123456789.', true); return; }
+    $('#wa-pair').hidden = true;
+    startWaLink(n);
+  });
+  $('#wa-test').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = ev.submitter || $('#wa-test button');
+    btn.disabled = true;
+    try { await api('waTest', { phone: $('#wa-test-phone').value }); toast('Mensaje de prueba enviado.'); $('#wa-test').hidden = true; } catch (e) { fail(e); }
+    btn.disabled = false;
+  });
+
+  $('#view-sitio').addEventListener('input', (ev) => {
+    if (ev.target.id !== 'rm-template') return;
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(refreshBot, 500);
+  });
+  $('#view-sitio').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-var]');
+    if (!b) return;
+    const ta = $('#rm-template');
+    const ins = `{${b.dataset.var}}`;
+    const at = ta.selectionStart ?? ta.value.length;
+    ta.value = ta.value.slice(0, at) + ins + ta.value.slice(ta.selectionEnd ?? at);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = at + ins.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  // ---------- GALERÍA ----------
+  let gallery = [];
+  const photoUrl = (id) => `/api/site?action=photo&id=${encodeURIComponent(id)}`;
+
+  async function loadGallery() {
+    try {
+      gallery = (await api('gallery')).gallery;
+      renderGallery();
+    } catch (e) { $('#gl-list').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }
+
+  function renderGallery(uploading = 0) {
+    const ph = Array.from({ length: uploading }, () => '<div class="gitem is-uploading"><img alt=""><div class="gitem__body"><span class="muted">Subiendo…</span></div></div>').join('');
+    if (!gallery.length && !uploading) {
+      $('#gl-list').innerHTML = '<div class="empty" style="grid-column:1/-1"><b>Todavía no hay fotos</b>Subí fotos de tus mejores cortes con “+ Subir fotos”. Desde el celular podés sacarlas en el momento.</div>';
+      return;
+    }
+    $('#gl-list').innerHTML = ph + gallery.map((p, i) => `
+      <div class="gitem">
+        <img src="${photoUrl(p.id)}" alt="${esc(p.caption)}" loading="lazy">
+        <div class="gitem__body">
+          <input data-gcap="${i}" maxlength="80" value="${esc(p.caption)}" placeholder="Texto (opcional), ej: Fade bajo" aria-label="Texto de la foto">
+          <div class="gitem__tools">
+            <span class="gitem__n">${i + 1}</span>
+            <span class="row-start">
+              <button class="btn btn--icon btn--xs" type="button" data-gmove="-1" data-i="${i}" aria-label="Mover antes" ${i === 0 ? 'disabled' : ''}>←</button>
+              <button class="btn btn--icon btn--xs" type="button" data-gmove="1" data-i="${i}" aria-label="Mover después" ${i === gallery.length - 1 ? 'disabled' : ''}>→</button>
+              <button class="btn btn--danger btn--xs" type="button" data-gdel="${esc(p.id)}">Borrar</button>
+            </span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  async function shrink(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => bad(new Error(`“${file.name}” no es una imagen que se pueda abrir.`)); im.src = url; });
+      const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      let type = 'image/webp';
+      let q = 0.82;
+      let data = c.toDataURL(type, q);
+      if (!data.startsWith('data:image/webp')) { type = 'image/jpeg'; data = c.toDataURL(type, 0.85); q = 0.85; }
+      while (data.length > 900 * 1024 && q > 0.4) { q -= 0.12; data = c.toDataURL(type, q); }
+      return { data, w, h };
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  $('#gl-file').addEventListener('change', async (ev) => {
+    const files = [...ev.target.files];
+    ev.target.value = '';
+    if (!files.length) return;
+    let done = 0;
+    for (const f of files) {
+      renderGallery(files.length - done);
+      try {
+        const { data, w, h } = await shrink(f);
+        const { item } = await api('galleryAdd', { data, w, h, caption: '' });
+        gallery.unshift(item);
+        done++;
+      } catch (e) { fail(e); done++; }
+    }
+    renderGallery();
+    toast(files.length === 1 ? 'Foto subida.' : `${files.length} fotos procesadas.`);
+  });
+
+  async function saveGalleryOrder(msg) {
+    try {
+      gallery = (await api('gallerySave', { items: gallery.map(({ id, caption }) => ({ id, caption })) })).gallery;
+      if (msg) toast(msg);
+    } catch (e) { fail(e); }
+  }
+
+  $('#gl-list').addEventListener('change', (ev) => {
+    const i = ev.target.dataset.gcap;
+    if (i === undefined) return;
+    gallery[Number(i)].caption = ev.target.value;
+    saveGalleryOrder('Texto guardado.');
+  });
+  $('#gl-list').addEventListener('click', async (ev) => {
+    const mv = ev.target.closest('[data-gmove]');
+    if (mv) {
+      const i = Number(mv.dataset.i);
+      const j = i + Number(mv.dataset.gmove);
+      [gallery[i], gallery[j]] = [gallery[j], gallery[i]];
+      renderGallery();
+      saveGalleryOrder();
+      return;
+    }
+    const del = ev.target.closest('[data-gdel]');
+    if (del && confirm('¿Borrar esta foto del sitio?')) {
+      try { gallery = (await api('galleryDelete', { id: del.dataset.gdel })).gallery; renderGallery(); toast('Foto borrada.'); } catch (e) { fail(e); }
+    }
   });
 
   // ---------- acciones de edición ----------

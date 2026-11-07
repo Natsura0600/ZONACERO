@@ -91,6 +91,7 @@ function memExec([command, ...a]) {
     case 'INCR': { const v = parseInt(store.get(a[0]) || '0', 10) + 1; store.set(a[0], String(v)); return v; }
     case 'EXPIRE': return 1;
     case 'HGETALL': { const h = hash(a[0]); return h ? [...h].flat() : []; }
+    case 'HMGET': { const h = hash(a[0]); return a.slice(1).map((f) => (h && h.has(f) ? h.get(f) : null)); }
     case 'HGET': { const h = hash(a[0]); return h && h.has(a[1]) ? h.get(a[1]) : null; }
     case 'HSET': {
       const h = hash(a[0], true); let n = 0;

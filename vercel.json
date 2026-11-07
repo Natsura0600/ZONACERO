@@ -1,6 +1,13 @@
 {
   "cleanUrls": true,
   "outputDirectory": "public",
+  "functions": {
+    "api/admin.js": { "maxDuration": 60 },
+    "api/cron.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron", "schedule": "0 12 * * *" }
+  ],
   "headers": [
     { "source": "/admin", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] },
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }

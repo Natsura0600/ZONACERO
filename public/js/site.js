@@ -81,6 +81,68 @@
     $('#loyalty-goal').textContent = l.goal;
   }
 
+  // ---------- galería ----------
+  let photos = [];
+  let lbIndex = 0;
+  const photoUrl = (id) => `/api/site?action=photo&id=${encodeURIComponent(id)}`;
+
+  function renderGallery(cfg) {
+    photos = cfg.gallery || [];
+    document.querySelectorAll('[data-gallery]').forEach((el) => { el.hidden = !photos.length; });
+    if (!photos.length) return;
+    const box = $('#shots');
+    box.innerHTML = photos.map((p, i) => `
+      <button type="button" class="shot" data-shot="${i}" aria-label="Ver foto${p.caption ? ': ' + esc(p.caption) : ''}">
+        <img src="${photoUrl(p.id)}" alt="${esc(p.caption || 'Corte en ' + cfg.business.name)}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async" width="${p.w}" height="${p.h}">
+        ${p.caption ? `<span class="shot__cap">${esc(p.caption)}</span>` : ''}
+      </button>`).join('');
+    const old = $('.shots-more');
+    if (old) old.remove();
+    if (photos.length > 8) {
+      box.classList.add('shots--more');
+      box.insertAdjacentHTML('afterend', `<div class="shots-more"><button class="btn btn--ghost" type="button" id="shots-more">Ver las ${photos.length} fotos</button></div>`);
+      $('#shots-more').addEventListener('click', (ev) => { box.classList.remove('shots--more'); ev.currentTarget.parentElement.remove(); });
+    }
+  }
+
+  function showPhoto(i) {
+    lbIndex = (i + photos.length) % photos.length;
+    const p = photos[lbIndex];
+    $('#lb-img').src = photoUrl(p.id);
+    $('#lb-img').alt = p.caption || 'Foto de un corte';
+    $('#lb-cap').textContent = p.caption || '';
+    const multi = photos.length > 1;
+    document.querySelectorAll('.lb-btn').forEach((b) => { b.hidden = !multi; });
+  }
+
+  $('#shots').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-shot]');
+    if (!b) return;
+    showPhoto(Number(b.dataset.shot));
+    $('#lightbox').showModal();
+  });
+  $('#lightbox').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-lb]');
+    if (b) {
+      if (b.dataset.lb === 'close') $('#lightbox').close(); else showPhoto(lbIndex + Number(b.dataset.lb));
+    } else if (ev.target === ev.currentTarget || ev.target.classList.contains('lightbox__fig')) {
+      $('#lightbox').close();
+    }
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (!$('#lightbox').open) return;
+    if (ev.key === 'ArrowRight') showPhoto(lbIndex + 1);
+    if (ev.key === 'ArrowLeft') showPhoto(lbIndex - 1);
+  });
+  let touchX = null;
+  $('#lightbox').addEventListener('touchstart', (ev) => { touchX = ev.touches[0].clientX; }, { passive: true });
+  $('#lightbox').addEventListener('touchend', (ev) => {
+    if (touchX === null) return;
+    const dx = ev.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50 && photos.length > 1) showPhoto(lbIndex + (dx < 0 ? 1 : -1));
+    touchX = null;
+  });
+
   // ---------- pizarra de precios ----------
   function renderBoard(cfg) {
     const board = $('#board');
@@ -393,6 +455,7 @@
     const cfg = state.cfg;
     renderBusiness(cfg);
     renderBoard(cfg);
+    renderGallery(cfg);
     renderServices();
     renderBarbers();
     const first = cfg.days.find((d) => d.open);

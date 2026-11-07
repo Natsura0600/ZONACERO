@@ -58,6 +58,7 @@
           <button role="tab" class="tab" data-tab="clientes" aria-selected="false">Clientes</button>
           <button role="tab" class="tab" data-tab="servicios" aria-selected="false">Servicios</button>
           <button role="tab" class="tab" data-tab="horarios" aria-selected="false">Horarios</button>
+          <button role="tab" class="tab" data-tab="galeria" aria-selected="false">Galería</button>
           <button role="tab" class="tab" data-tab="sitio" aria-selected="false">Sitio</button>
         </nav>
         <div class="bar__end">
@@ -158,9 +159,55 @@
       </section>
 
       <!-- SITIO -->
+      <!-- GALERÍA -->
+      <section class="view" id="view-galeria" hidden>
+        <div class="view__head">
+          <h1>Galería de cortes</h1>
+          <label class="btn btn--accent btn--sm upload">
+            + Subir fotos
+            <input type="file" id="gl-file" accept="image/*" multiple>
+          </label>
+        </div>
+        <p class="muted lead">Las fotos aparecen en el sitio en este orden, la primera arriba. Se achican solas antes de subirse. Si no hay fotos, la sección no se muestra.</p>
+        <div class="glist" id="gl-list"><p class="muted">Cargando…</p></div>
+      </section>
+
       <section class="view" id="view-sitio" hidden>
         <div class="view__head"><h1>Textos y apariencia</h1></div>
         <div id="st-form"></div>
+        <div class="block">
+          <h2>Recordatorios por WhatsApp</h2>
+          <div class="wa" id="wa">
+            <p class="nt-status" id="wa-status">Revisando WhatsApp…</p>
+            <div class="wa__qr" id="wa-qr" hidden>
+              <img id="wa-qr-img" alt="Código QR para vincular WhatsApp">
+              <div class="wa__steps">
+                <ol>
+                  <li>Abrí WhatsApp en el celular de la barbería.</li>
+                  <li>Tocá <b>⋮ / Configuración → Dispositivos vinculados → Vincular dispositivo</b>.</li>
+                  <li>Escaneá este código.</li>
+                </ol>
+                <p class="muted" id="wa-qr-hint">El código se renueva solo. Quedate en esta pantalla hasta que diga “Conectado”.</p>
+              </div>
+            </div>
+            <p class="wa__code" id="wa-code" hidden></p>
+            <div class="row-start" id="wa-actions"></div>
+            <form class="inline-add" id="wa-pair" hidden novalidate>
+              <input id="wa-pair-number" inputmode="numeric" placeholder="5491123456789" aria-label="Número de WhatsApp de la barbería">
+              <button class="btn btn--ghost btn--sm" type="submit">Pedir código</button>
+            </form>
+            <form class="inline-add" id="wa-test" hidden novalidate>
+              <input id="wa-test-phone" type="tel" placeholder="Tu celular, ej: 11 2345 6789" aria-label="Celular para la prueba">
+              <button class="btn btn--ghost btn--sm" type="submit">Mandar prueba</button>
+            </form>
+            <p class="muted" id="wa-cron"></p>
+          </div>
+          <div id="rm-form" class="stack"></div>
+          <div class="preview">
+            <span class="preview__label">Así le llega al cliente</span>
+            <p class="preview__bubble" id="rm-preview"></p>
+          </div>
+        </div>
         <div class="block">
           <h2>Avisos al celular</h2>
           <p class="muted">Cuando alguien saca o cancela un turno, te llega una notificación. Se activa en cada celular o compu donde quieras recibirla.</p>

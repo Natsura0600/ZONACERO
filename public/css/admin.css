@@ -240,6 +240,36 @@ input[type="number"], input[type="time"] { font-variant-numeric: tabular-nums; }
 .devices small { color: var(--muted); }
 .nudge { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border-radius: 14px; font-weight: 600; }
 
+/* ---------- galería ---------- */
+.upload { position: relative; overflow: hidden; }
+.upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.glist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.gitem { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.gitem img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; background: var(--raised); }
+.gitem__body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.gitem__tools { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.gitem__n { font: 600 13px var(--font-mono); color: var(--muted); }
+.gitem.is-uploading { opacity: .6; }
+
+/* ---------- recordatorios ---------- */
+.preview { display: flex; flex-direction: column; gap: 6px; }
+.preview__label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.preview__bubble { margin: 0; max-width: 440px; padding: 10px 14px; border-radius: 4px 14px 14px 14px; background: #1f4d3a; color: #eafff3; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vars { display: flex; flex-wrap: wrap; gap: 6px; }
+.var { background: var(--raised); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font: 600 13px var(--font-mono); cursor: pointer; color: var(--ink); }
+.cell__rem { font-size: 12px; }
+.cell__rem.is-sent { color: #9be3bd; }
+.cell__rem.is-failed { color: var(--bad); }
+
+/* ---------- WhatsApp ---------- */
+.wa { display: flex; flex-direction: column; gap: 12px; padding-bottom: 14px; border-bottom: 1px dashed var(--line); }
+.wa__qr { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; }
+.wa__qr img { width: 240px; max-width: 100%; aspect-ratio: 1; background: #fff; border-radius: 14px; padding: 8px; }
+.wa__steps { flex: 1 1 240px; min-width: 0; }
+.wa__steps ol { margin: 0 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.wa__code { margin: 0; font: 600 34px var(--font-mono); letter-spacing: .18em; }
+.nt-status.is-warn { color: #f4cf8d; }
+
 /* ---------- sitio ---------- */
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .swatch { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }

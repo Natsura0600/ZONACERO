@@ -5,9 +5,11 @@ import {
 } from './_lib/core.js';
 import { redis } from './_lib/db.js';
 import { notify, describeBooking } from './_lib/notify.js';
+import { listGallery, sendPhoto } from './_lib/gallery.js';
 
-function publicConfig(cfg) {
+function publicConfig(cfg, gallery) {
   return {
+    gallery: gallery.map(({ id, caption, w, h }) => ({ id, caption, w, h })),
     business: cfg.business,
     theme: cfg.theme,
     services: cfg.services.filter((s) => s.active).map(({ id, name, desc, price }) => ({ id, name, desc, price })),
@@ -47,9 +49,10 @@ export default wrap(async (req, res) => {
   const q = getQuery(req);
   const body = req.method === 'POST' ? await readBody(req) : {};
   const action = body.action || q.action;
+  if (action === 'photo') return sendPhoto(res, q.id);
   const cfg = await getConfig();
 
-  if (action === 'config') return send(res, 200, publicConfig(cfg));
+  if (action === 'config') return send(res, 200, publicConfig(cfg, await listGallery()));
 
   if (action === 'slots') {
     const date = String(q.date || body.date || '');
