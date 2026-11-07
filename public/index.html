@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Zona Cero · Barbería</title>
+  <meta name="description" content="Sacá turno online en Zona Cero y sumá sellos con cada corte.">
+  <meta name="theme-color" content="#0e1626">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+  <div class="announce" id="announce" hidden><p id="announce-text"></p></div>
+
+  <header class="top">
+    <div class="wrap top__in">
+      <a class="brand" href="#inicio" id="brand-small">Zona Cero</a>
+      <nav class="top__nav" aria-label="Secciones">
+        <a href="#precios">Precios</a>
+        <a href="#turno">Turnos</a>
+        <a href="#tarjeta" data-loyalty>Mi tarjeta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero">
+      <div class="wrap hero__in">
+        <div class="hero__text">
+          <p class="eyebrow" id="tagline">Barbería</p>
+          <h1 class="hero__name" id="hero-name"><span>Zona</span><span>Cer<em class="zero">o</em></span></h1>
+          <p class="hero__title" id="hero-title">Tu corte, a tu hora.</p>
+          <p class="hero__lead" id="hero-text">Fade, tijera, barba o rapado al cero. Elegí el horario que te quede cómodo y sumá un sello cada vez que venís.</p>
+          <div class="hero__cta">
+            <a class="btn btn--accent" href="#turno">Sacar turno</a>
+            <a class="btn btn--ghost" href="#tarjeta" data-loyalty>Ver mis sellos</a>
+          </div>
+        </div>
+        <div class="pole" aria-hidden="true">
+          <div class="pole__cap"></div>
+          <div class="pole__glass"><div class="pole__stripes"></div></div>
+          <div class="pole__cap pole__cap--bottom"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="stripe" aria-hidden="true"></div>
+
+    <section class="about" id="about" hidden>
+      <div class="wrap about__in">
+        <h2 class="section-title">La barbería</h2>
+        <p id="about-text"></p>
+      </div>
+    </section>
+
+    <section class="prices" id="precios">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title">Precios</h2>
+          <p class="section-note">Tocá un servicio para reservarlo.</p>
+        </div>
+        <ul class="board" id="board">
+          <li class="board__row board__row--skeleton"><span class="board__name">Corte</span></li>
+          <li class="board__row board__row--skeleton"><span class="board__name">Corte + barba</span></li>
+          <li class="board__row board__row--skeleton"><span class="board__name">Barba</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="booking" id="turno">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title">Sacá tu turno</h2>
+          <p class="section-note">Te lleva un minuto. No hace falta registrarse.</p>
+        </div>
+
+        <div class="panel" id="booking-panel">
+          <form id="booking-form" novalidate>
+            <fieldset class="step" id="step-service">
+              <legend><span class="step__n">1</span> Servicio</legend>
+              <div class="options options--services" id="opt-services"><p class="muted">Cargando servicios…</p></div>
+            </fieldset>
+
+            <fieldset class="step" id="step-barber" hidden>
+              <legend><span class="step__n">2</span> Barbero</legend>
+              <div class="options" id="opt-barbers"></div>
+            </fieldset>
+
+            <fieldset class="step" id="step-day">
+              <legend><span class="step__n" data-n="day">2</span> Día</legend>
+              <div class="days" id="opt-days" role="radiogroup" aria-label="Día"></div>
+            </fieldset>
+
+            <fieldset class="step" id="step-time">
+              <legend><span class="step__n" data-n="time">3</span> Horario</legend>
+              <div class="times" id="opt-times"><p class="muted">Elegí un día para ver los horarios libres.</p></div>
+            </fieldset>
+
+            <fieldset class="step" id="step-data">
+              <legend><span class="step__n" data-n="data">4</span> Tus datos</legend>
+              <div class="fields">
+                <label class="field">
+                  <span>Nombre</span>
+                  <input id="f-name" name="name" autocomplete="given-name" maxlength="60" placeholder="Cómo te llamás" required>
+                </label>
+                <label class="field">
+                  <span>Celular</span>
+                  <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="11 2345 6789" required>
+                </label>
+              </div>
+              <p class="hint">Con tu celular te encontramos la tarjeta de sellos.</p>
+            </fieldset>
+
+            <div class="summary">
+              <p class="summary__text" id="summary">Elegí servicio, día y horario.</p>
+              <button class="btn btn--accent" type="submit" id="book-btn" disabled>Confirmar turno</button>
+            </div>
+            <p class="form-error" id="book-error" role="alert" hidden></p>
+          </form>
+
+          <div class="done" id="booking-done" hidden>
+            <div class="done__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>¡Turno confirmado!</h3>
+            <p class="done__detail" id="done-detail"></p>
+            <div class="ticket">
+              <span class="ticket__label">Código del turno</span>
+              <span class="ticket__code" id="done-code">----</span>
+              <span class="ticket__hint">Guardalo: lo vas a necesitar si querés cancelar.</span>
+            </div>
+            <p class="done__stamps" id="done-stamps" hidden></p>
+            <button class="btn btn--ghost" type="button" id="book-again">Sacar otro turno</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="loyalty" id="tarjeta" data-loyalty>
+      <div class="wrap loyalty__in">
+        <div class="loyalty__text">
+          <h2 class="section-title">Tarjeta de sellos</h2>
+          <p class="loyalty__lead" id="loyalty-text">Cada visita suma un sello. Cuando completás la tarjeta, el próximo corte va por la casa.</p>
+          <p class="loyalty__reward"><span class="tag">Premio</span> <strong id="loyalty-reward">Corte gratis</strong> al juntar <strong id="loyalty-goal">10</strong> sellos.</p>
+
+          <form class="lookup" id="lookup-form" novalidate>
+            <label class="field">
+              <span>Consultá tus sellos y turnos</span>
+              <div class="lookup__row">
+                <input id="l-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="Tu celular">
+                <button class="btn btn--accent" type="submit">Ver</button>
+              </div>
+            </label>
+            <p class="form-error" id="lookup-error" role="alert" hidden></p>
+          </form>
+        </div>
+
+        <div class="loyalty__card">
+          <div class="card" id="card">
+            <div class="card__top">
+              <span class="card__brand" id="card-brand">Zona Cero</span>
+              <span class="card__who" id="card-who">Ejemplo</span>
+            </div>
+            <div class="card__stamps" id="card-stamps"></div>
+            <div class="card__bottom">
+              <span id="card-count">6 de 10</span>
+              <span id="card-status">Te faltan 4 para el premio</span>
+            </div>
+          </div>
+          <p class="card__caption" id="card-caption">Así se ve una tarjeta. Poné tu celular para ver la tuya.</p>
+
+          <div class="mine" id="mine" hidden>
+            <h3>Tus próximos turnos</h3>
+            <ul class="mine__list" id="mine-list"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot__in">
+      <span class="foot__name" id="foot-name">Zona Cero</span>
+      <div class="foot__links" id="foot-links"></div>
+    </div>
+  </footer>
+
+  <script src="/js/site.js" defer></script>
+</body>
+</html>

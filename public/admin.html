@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel · Zona Cero</title>
+  <meta name="theme-color" content="#0e1626">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <!-- Pantallas de acceso -->
+  <section class="gate" id="gate" hidden>
+    <div class="gate__box">
+      <p class="gate__brand">Zona Cero</p>
+      <h1 class="gate__title" id="gate-title">Panel</h1>
+      <p class="gate__text" id="gate-text"></p>
+      <form id="gate-form" class="stack" novalidate>
+        <label class="field">
+          <span id="gate-label">Contraseña</span>
+          <input id="gate-pass" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="field" id="gate-confirm-wrap" hidden>
+          <span>Repetí la contraseña</span>
+          <input id="gate-pass2" type="password" autocomplete="new-password">
+        </label>
+        <button class="btn btn--accent btn--block" type="submit" id="gate-btn">Entrar</button>
+        <p class="msg msg--error" id="gate-error" role="alert" hidden></p>
+      </form>
+      <div id="gate-db" hidden>
+        <ol class="steps-list">
+          <li>Entrá a tu proyecto en Vercel y abrí la pestaña <b>Storage</b>.</li>
+          <li>Tocá <b>Create Database</b>, elegí <b>Upstash for Redis</b> (el plan gratis alcanza) y conectalo a este proyecto.</li>
+          <li>Andá a <b>Deployments</b> y hacé <b>Redeploy</b> del último deploy.</li>
+          <li>Volvé a esta página.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- Panel -->
+  <div class="app" id="app" hidden>
+    <header class="bar">
+      <div class="bar__in">
+        <span class="bar__brand" id="bar-brand">Zona Cero</span>
+        <nav class="tabs" role="tablist" aria-label="Secciones del panel">
+          <button role="tab" class="tab" data-tab="agenda" aria-selected="true">Agenda</button>
+          <button role="tab" class="tab" data-tab="clientes" aria-selected="false">Clientes</button>
+          <button role="tab" class="tab" data-tab="servicios" aria-selected="false">Servicios</button>
+          <button role="tab" class="tab" data-tab="horarios" aria-selected="false">Horarios</button>
+          <button role="tab" class="tab" data-tab="sitio" aria-selected="false">Sitio</button>
+        </nav>
+        <div class="bar__end">
+          <a class="bar__link" href="/" target="_blank" rel="noopener">Ver sitio ↗</a>
+          <button class="bar__link" type="button" id="logout">Salir</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- AGENDA -->
+      <section class="view" id="view-agenda">
+        <div class="view__head">
+          <h1>Agenda</h1>
+          <div class="datenav">
+            <button class="btn btn--icon" type="button" id="ag-prev" aria-label="Semana anterior">‹</button>
+            <input type="date" id="ag-date" aria-label="Ir a fecha">
+            <button class="btn btn--icon" type="button" id="ag-next" aria-label="Semana siguiente">›</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="ag-today">Hoy</button>
+          </div>
+        </div>
+        <div class="strip" id="ag-strip"></div>
+        <div class="dayhead" id="ag-dayhead"></div>
+        <div class="slots" id="ag-slots"><p class="muted">Cargando agenda…</p></div>
+      </section>
+
+      <!-- CLIENTES -->
+      <section class="view" id="view-clientes" hidden>
+        <div class="view__head">
+          <h1>Clientes y sellos</h1>
+          <button class="btn btn--accent btn--sm" type="button" id="cl-new-open">+ Nuevo cliente</button>
+        </div>
+        <form class="card-form" id="cl-new" hidden novalidate>
+          <div class="grid3">
+            <label class="field"><span>Nombre</span><input id="cl-new-name" maxlength="60"></label>
+            <label class="field"><span>Celular</span><input id="cl-new-phone" type="tel" maxlength="30"></label>
+            <label class="field"><span>Sellos iniciales</span><input id="cl-new-stamps" type="number" min="0" max="999" value="0"></label>
+          </div>
+          <div class="row-end">
+            <button class="btn btn--ghost btn--sm" type="button" id="cl-new-cancel">Cancelar</button>
+            <button class="btn btn--accent btn--sm" type="submit">Guardar cliente</button>
+          </div>
+        </form>
+        <div class="kpis" id="cl-kpis"></div>
+        <div class="toolbar">
+          <input type="search" id="cl-search" placeholder="Buscar por nombre o celular" aria-label="Buscar cliente">
+          <div class="seg" role="group" aria-label="Filtro">
+            <button type="button" class="seg__btn" data-filter="all" aria-pressed="true">Todos</button>
+            <button type="button" class="seg__btn" data-filter="prize" aria-pressed="false">Con premio</button>
+          </div>
+        </div>
+        <div class="clients" id="cl-list"><p class="muted">Cargando clientes…</p></div>
+      </section>
+
+      <!-- SERVICIOS -->
+      <section class="view" id="view-servicios" hidden>
+        <div class="view__head">
+          <h1>Servicios y precios</h1>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="add-service">+ Agregar servicio</button>
+        </div>
+        <div id="sv-list" class="stack"></div>
+      </section>
+
+      <!-- HORARIOS -->
+      <section class="view" id="view-horarios" hidden>
+        <div class="view__head"><h1>Horarios de atención</h1></div>
+        <p class="muted lead">Esto no se muestra en el sitio: solo define qué horarios pueden reservar tus clientes.</p>
+        <div class="block">
+          <h2>Semana</h2>
+          <div id="hr-week" class="week"></div>
+        </div>
+        <div class="block">
+          <h2>Turnos</h2>
+          <div class="grid4" id="hr-rules"></div>
+        </div>
+        <div class="block">
+          <h2>Días cerrados</h2>
+          <p class="muted">Feriados, vacaciones o cualquier día que no abras.</p>
+          <div class="inline-add">
+            <input type="date" id="hr-closed-date" aria-label="Fecha a cerrar">
+            <button class="btn btn--ghost btn--sm" type="button" data-act="add-closed">Agregar</button>
+          </div>
+          <div class="chips" id="hr-closed"></div>
+        </div>
+        <div class="block">
+          <h2>Barberos</h2>
+          <p class="muted">Cada barbero tiene su propia agenda. Si hay uno solo, el cliente no tiene que elegir.</p>
+          <div id="hr-barbers" class="stack"></div>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="add-barber">+ Agregar barbero</button>
+        </div>
+      </section>
+
+      <!-- SITIO -->
+      <section class="view" id="view-sitio" hidden>
+        <div class="view__head"><h1>Textos y apariencia</h1></div>
+        <div id="st-form"></div>
+        <div class="block">
+          <h2>Contraseña del panel</h2>
+          <form class="grid3" id="pw-form" novalidate>
+            <label class="field"><span>Contraseña actual</span><input type="password" id="pw-current" autocomplete="current-password"></label>
+            <label class="field"><span>Nueva contraseña</span><input type="password" id="pw-next" autocomplete="new-password"></label>
+            <div class="field field--end"><button class="btn btn--ghost" type="submit">Cambiar contraseña</button></div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <div class="savebar" id="savebar" hidden>
+      <div class="savebar__in">
+        <span>Tenés cambios sin guardar.</span>
+        <div class="row-end">
+          <button class="btn btn--ghost btn--sm" type="button" id="discard">Descartar</button>
+          <button class="btn btn--accent btn--sm" type="button" id="save">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nuevo turno -->
+  <dialog class="modal" id="bk-modal">
+    <form method="dialog" class="stack" id="bk-form" novalidate>
+      <h2 class="modal__title">Nuevo turno</h2>
+      <p class="muted" id="bk-when"></p>
+      <label class="field"><span>Nombre</span><input id="bk-name" maxlength="60" list="bk-clients" autocomplete="off"></label>
+      <datalist id="bk-clients"></datalist>
+      <label class="field"><span>Celular</span><input id="bk-phone" type="tel" maxlength="30"></label>
+      <label class="field"><span>Servicio</span><select id="bk-service"></select></label>
+      <p class="msg msg--error" id="bk-error" hidden></p>
+      <div class="row-end">
+        <button class="btn btn--ghost btn--sm" type="button" id="bk-cancel">Cancelar</button>
+        <button class="btn btn--accent btn--sm" type="submit" value="ok">Guardar turno</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="/js/admin.js" defer></script>
+</body>
+</html>
