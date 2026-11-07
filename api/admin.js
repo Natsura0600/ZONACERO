@@ -5,6 +5,9 @@ import {
 } from './_lib/core.js';
 import { redis, pipe, dbReady } from './_lib/db.js';
 import {
+  notify, vapidPublicKey, saveSubscription, removeSubscription, listDevices, removeDevice,
+} from './_lib/notify.js';
+import {
   requireAdmin, hasPassword, verifyPassword, setupPassword, changePassword, makeToken, loginGuard,
 } from './_lib/auth.js';
 
@@ -73,6 +76,27 @@ export default wrap(async (req, res) => {
   switch (action) {
     case 'getConfig':
       return send(res, 200, { config: cfg, today: nowLocal(cfg.timezone).date });
+
+    case 'pushKey':
+      return send(res, 200, { publicKey: await vapidPublicKey(), devices: await listDevices() });
+
+    case 'pushSubscribe': {
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+      const subject = /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) ? `https://${host}` : 'mailto:avisos@zonacero.app';
+      try { await saveSubscription(body.subscription, { device: clean(body.device, 60), subject }); } catch (e) { throw new HttpError(400, e.message); }
+      return send(res, 200, { devices: await listDevices() });
+    }
+
+    case 'pushUnsubscribe':
+      if (body.id) await removeDevice(body.id); else await removeSubscription(body.endpoint);
+      return send(res, 200, { devices: await listDevices() });
+
+    case 'testNotify': {
+      const r = await notify('Prueba de avisos', `Si ves esto, los avisos de ${cfg.business.name} funcionan.`);
+      if (!r.devices) throw new HttpError(400, 'Todavía no activaste los avisos en ningún celular.');
+      if (!r.ok) throw new HttpError(502, 'No se pudo enviar el aviso. Desactivá y volvé a activar los avisos en tu celular.');
+      return send(res, 200, r);
+    }
 
     case 'saveConfig':
       return send(res, 200, { config: await saveConfig(body.config) });

@@ -4,6 +4,7 @@ import {
   KEYS, removeRef,
 } from './_lib/core.js';
 import { redis } from './_lib/db.js';
+import { notify, describeBooking } from './_lib/notify.js';
 
 function publicConfig(cfg) {
   return {
@@ -65,6 +66,12 @@ export default wrap(async (req, res) => {
 
   if (action === 'book') {
     const { booking } = await createBooking(cfg, body);
+    const multi = cfg.barbers.filter((b) => b.active).length > 1;
+    await notify(`Nuevo turno: ${booking.name}`, [
+      describeBooking(booking),
+      `${booking.serviceName}${multi ? ' con ' + booking.barberName : ''}`,
+      `Cel: ${booking.phoneRaw || booking.phone}`,
+    ].join('\n'));
     const card = cfg.loyalty.enabled ? await cardFor(cfg, booking.phone) : null;
     return send(res, 200, { booking: summary(booking), card });
   }
@@ -87,6 +94,7 @@ export default wrap(async (req, res) => {
     const field = match.ref.slice(match.ref.indexOf('|') + 1);
     await redis('HDEL', KEYS.day(match.date), field);
     await removeRef(phone, match.ref);
+    await notify(`Turno cancelado: ${match.name}`, `${describeBooking(match)}\n${match.serviceName}\nEl horario quedó libre.`);
     return send(res, 200, { ok: true, ...(await cardFor(cfg, phone)) });
   }
 

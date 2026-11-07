@@ -2,6 +2,7 @@
   "cleanUrls": true,
   "outputDirectory": "public",
   "headers": [
-    { "source": "/admin", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
+    { "source": "/admin", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] },
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
   ]
 }

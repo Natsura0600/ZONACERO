@@ -169,11 +169,11 @@
   $$('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
   function render() {
-    if (S.tab === 'agenda') loadAgenda();
+    if (S.tab === 'agenda') { loadAgenda(); renderNudge(); }
     if (S.tab === 'clientes') S.clients ? renderClients() : loadClients();
     if (S.tab === 'servicios') renderServices();
     if (S.tab === 'horarios') renderHorarios();
-    if (S.tab === 'sitio') renderSitio();
+    if (S.tab === 'sitio') { renderSitio(); renderNotify(); }
   }
 
   // ---------- guardar configuración ----------
@@ -694,6 +694,132 @@
         </div>
       </div>`;
   }
+
+  // ---------- AVISOS (Web Push) ----------
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const deviceName = () => {
+    const os = isIOS ? (/iPad/.test(ua) ? 'iPad' : 'iPhone') : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Dispositivo';
+    const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /SamsungBrowser/.test(ua) ? 'Samsung' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+    return br ? `${os} · ${br}` : os;
+  };
+  const b64ToBytes = (b64) => {
+    const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(s, (c) => c.charCodeAt(0));
+  };
+  let swReg = null;
+  async function getReg() {
+    if (!pushSupported) return null;
+    if (!swReg) swReg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    return swReg;
+  }
+  async function currentSub() {
+    try { const r = await getReg(); return r ? await r.pushManager.getSubscription() : null; } catch { return null; }
+  }
+
+  // Devuelve un texto si este dispositivo no puede activar avisos.
+  function pushBlocker() {
+    if (isIOS && !standalone) return 'En iPhone: tocá Compartir → “Agregar a inicio”, abrí el panel desde ese ícono y activá los avisos ahí.';
+    if (!pushSupported) return 'Este navegador no permite notificaciones. Probá con Chrome en Android, o con Safari en iPhone agregando el panel a inicio.';
+    if (Notification.permission === 'denied') return 'Bloqueaste las notificaciones para este sitio. Habilitalas en los ajustes del navegador y volvé a intentar.';
+    return '';
+  }
+
+  async function enablePush() {
+    const blocker = pushBlocker();
+    if (blocker) { toast(blocker, true); return false; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Sin permiso no se pueden mandar avisos. Tocá “Permitir” cuando el celular pregunte.', true); return false; }
+    const { publicKey } = await api('pushKey');
+    const reg = await getReg();
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const old = sub.options && sub.options.applicationServerKey;
+      const same = old && btoa(String.fromCharCode(...new Uint8Array(old))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === publicKey;
+      if (!same) { await sub.unsubscribe(); sub = null; }
+    }
+    if (!sub) {
+      try {
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+      } catch {
+        toast('Este navegador no pudo activar los avisos. Probá con Chrome en Android o con el panel agregado a inicio en iPhone.', true);
+        return false;
+      }
+    }
+    await api('pushSubscribe', { subscription: sub.toJSON(), device: deviceName() });
+    try { localStorage.removeItem('zc:nudge-off'); } catch { /* nada */ }
+    toast('Avisos activados en este dispositivo.');
+    return true;
+  }
+
+  async function renderNotify() {
+    const status = $('#nt-status');
+    let devices = [];
+    try { devices = (await api('pushKey')).devices; } catch (e) { status.textContent = e.message; return; }
+    const sub = await currentSub();
+    const here = sub && devices.some((d) => d.endpoint === sub.endpoint);
+    const blocker = here ? '' : pushBlocker();
+    status.classList.toggle('is-on', Boolean(here));
+    status.textContent = here ? 'Activados en este dispositivo.' : blocker || 'Todavía no están activados en este dispositivo.';
+    $('#nt-on').hidden = Boolean(here || blocker);
+    $('#nt-off').hidden = !here;
+    $('#nt-test').hidden = !devices.length;
+    $('#nt-devices').innerHTML = devices.map((d) => `<li><span>${esc(d.device)}${sub && d.endpoint === sub.endpoint ? ' <small>(este)</small>' : ''}<br><small>Desde ${esc(fmt(d.createdAt.slice(0, 10), { day: 'numeric', month: 'short' }))}</small></span>
+      <button class="x" type="button" data-dev="${esc(d.id)}" aria-label="Quitar ${esc(d.device)}">×</button></li>`).join('');
+  }
+
+  async function renderNudge() {
+    let off = false;
+    try { off = localStorage.getItem('zc:nudge-off') === '1'; } catch { /* nada */ }
+    const sub = await currentSub();
+    const show = !off && !sub && (pushSupported || isIOS) && window.Notification?.permission !== 'denied';
+    $('#nudge').hidden = !show;
+    if (show && isIOS && !standalone) {
+      $('#nudge-text').textContent = 'Para recibir avisos de turnos nuevos en el iPhone: Compartir → “Agregar a inicio”, y abrí el panel desde ese ícono.';
+      $('#nudge-on').hidden = true;
+    }
+  }
+
+  $('#nt-on').addEventListener('click', async (ev) => {
+    ev.currentTarget.disabled = true;
+    try { await enablePush(); } catch (e) { fail(e); }
+    ev.currentTarget.disabled = false;
+    renderNotify();
+  });
+  $('#nt-off').addEventListener('click', async (ev) => {
+    ev.currentTarget.disabled = true;
+    try {
+      const sub = await currentSub();
+      if (sub) { await api('pushUnsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+      toast('Avisos desactivados en este dispositivo.');
+    } catch (e) { fail(e); }
+    ev.currentTarget.disabled = false;
+    renderNotify();
+  });
+  $('#nt-devices').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-dev]');
+    if (!b) return;
+    try { await api('pushUnsubscribe', { id: b.dataset.dev }); } catch (e) { fail(e); }
+    renderNotify();
+  });
+  $('#nt-test').addEventListener('click', async (ev) => {
+    const b = ev.currentTarget;
+    b.disabled = true;
+    try {
+      const r = await api('testNotify');
+      toast(r.failed ? `Enviado a ${r.ok} de ${r.devices} dispositivos.` : 'Aviso enviado. Fijate en tu celular.');
+    } catch (e) { fail(e); } finally { b.disabled = false; renderNotify(); }
+  });
+  $('#nudge-on').addEventListener('click', async () => {
+    try { if (await enablePush()) $('#nudge').hidden = true; } catch (e) { fail(e); }
+  });
+  $('#nudge-close').addEventListener('click', () => {
+    try { localStorage.setItem('zc:nudge-off', '1'); } catch { /* nada */ }
+    $('#nudge').hidden = true;
+  });
 
   $('#pw-form').addEventListener('submit', async (ev) => {
     ev.preventDefault();

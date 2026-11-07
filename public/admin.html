@@ -7,6 +7,12 @@
   <title>Panel · Zona Cero</title>
   <meta name="theme-color" content="#0e1626">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Zona Cero">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -72,6 +78,13 @@
             <button class="btn btn--icon" type="button" id="ag-next" aria-label="Semana siguiente">›</button>
             <button class="btn btn--ghost btn--sm" type="button" id="ag-today">Hoy</button>
           </div>
+        </div>
+        <div class="nudge" id="nudge" hidden>
+          <span id="nudge-text">Activá los avisos para enterarte al instante de cada turno nuevo.</span>
+          <span class="row-start">
+            <button class="btn btn--accent btn--xs" type="button" id="nudge-on">Activar avisos</button>
+            <button class="btn btn--ghost btn--xs" type="button" id="nudge-close">Ahora no</button>
+          </span>
         </div>
         <div class="strip" id="ag-strip"></div>
         <div class="dayhead" id="ag-dayhead"></div>
@@ -148,6 +161,17 @@
       <section class="view" id="view-sitio" hidden>
         <div class="view__head"><h1>Textos y apariencia</h1></div>
         <div id="st-form"></div>
+        <div class="block">
+          <h2>Avisos al celular</h2>
+          <p class="muted">Cuando alguien saca o cancela un turno, te llega una notificación. Se activa en cada celular o compu donde quieras recibirla.</p>
+          <p class="nt-status" id="nt-status">Revisando…</p>
+          <div class="row-start">
+            <button class="btn btn--accent btn--sm" type="button" id="nt-on" hidden>Activar avisos en este dispositivo</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="nt-off" hidden>Desactivar en este dispositivo</button>
+            <button class="btn btn--ghost btn--sm" type="button" id="nt-test" hidden>Enviar aviso de prueba</button>
+          </div>
+          <ul class="devices" id="nt-devices"></ul>
+        </div>
         <div class="block">
           <h2>Contraseña del panel</h2>
           <form class="grid3" id="pw-form" novalidate>
