@@ -647,7 +647,7 @@
   });
 
   // ---------- SITIO ----------
-  const PRESETS = [['#d8382c', 'Rojo'], ['#d2601a', 'Naranja'], ['#b5832a', 'Dorado'], ['#1f9257', 'Verde'], ['#2b63d9', 'Azul'], ['#7a4bd6', 'Violeta']];
+  const PRESETS = [['#0a0a0a', 'Blanco y negro'], ['#d8382c', 'Rojo'], ['#d2601a', 'Naranja'], ['#b5832a', 'Dorado'], ['#1f9257', 'Verde'], ['#2b63d9', 'Azul'], ['#7a4bd6', 'Violeta']];
   const ZONES = [
     ['America/Argentina/Buenos_Aires', 'Argentina'], ['America/Montevideo', 'Uruguay'], ['America/Santiago', 'Chile'],
     ['America/Asuncion', 'Paraguay'], ['America/Bogota', 'Colombia'], ['America/Lima', 'Perú'],

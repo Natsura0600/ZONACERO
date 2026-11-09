@@ -25,7 +25,7 @@ export const DEFAULT_CONFIG = {
     instagram: '',
     whatsapp: '',
   },
-  theme: { accent: '#d8382c' },
+  theme: { accent: '#0a0a0a' },
   services: [
     { id: 'corte', name: 'Corte', desc: 'Máquina y tijera, lavado y peinado.', price: 12000, active: true },
     { id: 'cortebarba', name: 'Corte + barba', desc: 'Corte completo y perfilado de barba con navaja.', price: 16000, active: true },

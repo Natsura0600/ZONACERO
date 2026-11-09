@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Zona Cero · Barbería</title>
   <meta name="description" content="Sacá turno online en Zona Cero y sumá sellos con cada corte.">
-  <meta name="theme-color" content="#0e1626">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
@@ -40,15 +41,18 @@
             <a class="btn btn--ghost" href="#tarjeta" data-loyalty>Ver mis sellos</a>
           </div>
         </div>
-        <div class="pole" aria-hidden="true">
-          <div class="pole__cap"></div>
-          <div class="pole__glass"><div class="pole__stripes"></div></div>
-          <div class="pole__cap pole__cap--bottom"></div>
-        </div>
       </div>
     </section>
 
-    <div class="stripe" aria-hidden="true"></div>
+    <section class="gallery" id="trabajos" data-gallery hidden>
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title">Trabajos</h2>
+          <p class="section-note">Cortes recientes. Tocá una foto para verla grande.</p>
+        </div>
+        <div class="shots" id="shots"></div>
+      </div>
+    </section>
 
     <section class="about" id="about" hidden>
       <div class="wrap about__in">
@@ -68,16 +72,6 @@
           <li class="board__row board__row--skeleton"><span class="board__name">Corte + barba</span></li>
           <li class="board__row board__row--skeleton"><span class="board__name">Barba</span></li>
         </ul>
-      </div>
-    </section>
-
-    <section class="gallery" id="trabajos" data-gallery hidden>
-      <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title">Trabajos</h2>
-          <p class="section-note">Cortes que salieron de la silla. Tocá una foto para verla grande.</p>
-        </div>
-        <div class="shots" id="shots"></div>
       </div>
     </section>
 

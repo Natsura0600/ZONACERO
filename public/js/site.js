@@ -35,11 +35,25 @@
 
   const state = { cfg: null, serviceId: '', barberId: 'any', date: '', time: '', timesReq: 0 };
 
+  // Negro (o casi) = sigue al tema blanco/negro. Cualquier otro color se usa tal cual,
+  // con texto blanco o negro según cuál se lea mejor encima.
+  function applyAccent(hex) {
+    const root = document.documentElement.style;
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return;
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (lum < 0.02) { root.removeProperty('--accent'); root.removeProperty('--accent-ink'); return; }
+    root.setProperty('--accent', hex);
+    root.setProperty('--accent-ink', lum > 0.4 ? '#0a0a0a' : '#ffffff');
+  }
+
   // ---------- textos del negocio ----------
   function renderBusiness(cfg) {
     const b = cfg.business;
     document.title = `${b.name}${b.tagline ? ' · ' + b.tagline : ''}`;
-    if (cfg.theme && cfg.theme.accent) document.documentElement.style.setProperty('--accent', cfg.theme.accent);
+    applyAccent(cfg.theme && cfg.theme.accent);
 
     $('#brand-small').textContent = b.name;
     $('#foot-name').textContent = b.name;
