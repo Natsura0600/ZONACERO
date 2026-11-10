@@ -97,6 +97,8 @@ input[type="number"], input[type="time"] { font-variant-numeric: tabular-nums; }
   display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap;
   padding: 10px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
 }
+.bar__brand { display: inline-flex; align-items: center; gap: .5em; }
+.bar__brand::before { content: ""; flex: 0 0 auto; width: 1.7em; height: 1.7em; background: currentColor; -webkit-mask: url(/logo/logo-mark.svg) center / contain no-repeat; mask: url(/logo/logo-mark.svg) center / contain no-repeat; }
 .bar__brand { font: 900 22px var(--font-display); text-transform: uppercase; letter-spacing: .04em; padding-bottom: 10px; }
 .bar__end { margin-left: auto; display: flex; gap: 14px; padding-bottom: 10px; }
 .bar__link { background: none; border: 0; padding: 0; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
@@ -300,3 +302,5 @@ body.has-savebar .toast { bottom: calc(90px + env(safe-area-inset-bottom, 0px));
 .swatch { border-color: var(--line); }
 .swatch[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
 .cell--booking.is-confirmado { border-left-color: var(--ink); }
+.bar__brand { font-size: 18px; }
+.bar__brand::before { width: 1.5em; height: 1.5em; }

@@ -69,6 +69,8 @@ button, input { font: inherit; color: inherit; }
 /* ---------- barra superior ---------- */
 .top { border-bottom: 1px solid var(--line); }
 .top__in { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; }
+.brand, .foot__name { display: inline-flex; align-items: center; gap: .6em; }
+.brand::before, .foot__name::before { content: ""; flex: 0 0 auto; width: 1.7em; height: 1.7em; background: currentColor; -webkit-mask: url(/logo/logo-mark.svg) center / contain no-repeat; mask: url(/logo/logo-mark.svg) center / contain no-repeat; }
 .brand { font-family: var(--font-display); font-weight: 800; font-stretch: 125%; font-size: 1rem; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
 .top__nav { display: flex; gap: 24px; flex-wrap: wrap; }
 .top__nav a { text-decoration: none; font-size: var(--step--1); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); transition: color .15s; }
