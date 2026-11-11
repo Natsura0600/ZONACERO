@@ -200,6 +200,8 @@ input[type="number"], input[type="time"] { font-variant-numeric: tabular-nums; }
 .dots { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--line); }
 .dot.is-on { background: var(--accent); border-color: var(--accent); }
+.dot.is-mark { width: 18px; height: 18px; border-color: var(--ink); }
+.cell__benefit { padding: 1px 9px; border: 1px solid var(--ink); border-radius: 999px; font-weight: 700; font-size: 12px; color: var(--ink); }
 .dots__n { font: 600 13px var(--font-mono); margin-left: 6px; font-variant-numeric: tabular-nums; }
 .client__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 @media (max-width: 760px) { .client__actions { justify-content: flex-start; } }

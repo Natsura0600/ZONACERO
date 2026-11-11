@@ -1,7 +1,7 @@
 import {
   wrap, send, readBody, HttpError, getConfig, saveConfig, slotsForDate, getDays, isValidDate,
   addDays, weekday, createBooking, normPhone, getClient, saveClient, newClient, clean, clampInt,
-  KEYS, genId, nowLocal,
+  KEYS, genId, nowLocal, bookingBenefit,
 } from './_lib/core.js';
 import { redis, pipe, dbReady } from './_lib/db.js';
 import {
@@ -44,6 +44,27 @@ async function mustClient(phone) {
 function adjustStamps(client, delta) {
   client.stamps = Math.max(0, (client.stamps || 0) + delta);
   client.visits = Math.max(0, (client.visits || 0) + delta);
+}
+
+// Suma una visita. El corte 5 (50% off) y el 10 (gratis) cuentan como beneficio usado;
+// al llegar al último la tarjeta se completa y arranca de nuevo.
+function grantStamp(client, cfg) {
+  const l = cfg.loyalty;
+  const g = { mid: false, free: false };
+  client.stamps = (client.stamps || 0) + 1;
+  client.visits = (client.visits || 0) + 1;
+  if (l.enabled && l.midEnabled && client.stamps === l.midAt) { g.mid = true; client.rewards = (client.rewards || 0) + 1; }
+  if (l.enabled && client.stamps >= l.goal) { g.free = true; client.stamps -= l.goal; client.rewards = (client.rewards || 0) + 1; }
+  return g;
+}
+
+// Deshace una visita sumada con grantStamp (g = lo que otorgó). Sin datos, resta un sello.
+function revokeStamp(client, g, cfg) {
+  if (!g) { adjustStamps(client, -1); return; }
+  if (g.free) client.stamps = (client.stamps || 0) + cfg.loyalty.goal;
+  client.stamps = Math.max(0, (client.stamps || 0) - 1);
+  client.visits = Math.max(0, (client.visits || 0) - 1);
+  client.rewards = Math.max(0, (client.rewards || 0) - (g.mid ? 1 : 0) - (g.free ? 1 : 0));
 }
 
 export default wrap(async (req, res) => {
@@ -155,6 +176,13 @@ export default wrap(async (req, res) => {
       const dates = Array.from({ length: n }, (_, i) => addDays(from, i));
       const days = await getDays(dates);
       const now = nowLocal(cfg.timezone);
+      // beneficio (50% off / gratis) de los turnos que todavía no se atendieron
+      const phones = [...new Set(days.flatMap((d) => Object.values(d.entries)).filter((e) => !e.blocked && e.status === 'confirmado' && e.phone).map((e) => e.phone))];
+      const clients = new Map();
+      if (cfg.loyalty.enabled && phones.length) {
+        const raws = await pipe(phones.map((p) => ['GET', KEYS.client(p)]));
+        raws.forEach((raw, i) => { try { if (raw) clients.set(phones[i], JSON.parse(raw)); } catch { /* ignorar */ } });
+      }
       return send(res, 200, {
         today: now.date,
         nowMinutes: now.minutes,
@@ -163,7 +191,13 @@ export default wrap(async (req, res) => {
           closedByDate: cfg.closedDates.includes(date),
           closedByWeek: !(cfg.schedule.week[weekday(date)] || []).length,
           slots: slotsForDate(cfg, date),
-          entries: Object.entries(entries).map(([field, e]) => ({ field, ...e })),
+          entries: Object.entries(entries).map(([field, e]) => {
+            if (!e.blocked && e.status === 'confirmado' && clients.has(e.phone)) {
+              const b = bookingBenefit(cfg, clients.get(e.phone), e, now);
+              if (b) return { field, ...e, benefit: b };
+            }
+            return { field, ...e };
+          }),
         })),
       });
     }
@@ -198,7 +232,7 @@ export default wrap(async (req, res) => {
         if (!entry.blocked && entry.phone) {
           const client = await getClient(entry.phone);
           if (client) {
-            if (entry.status === 'atendido') adjustStamps(client, -1);
+            if (entry.status === 'atendido') revokeStamp(client, entry.granted, cfg);
             client.refs = (client.refs || []).filter((r) => r !== `${body.date}|${body.field}`);
             await saveClient(client);
           }
@@ -212,16 +246,25 @@ export default wrap(async (req, res) => {
       const prev = entry.status;
       if (prev === status) return send(res, 200, { entry: { field: body.field, ...entry } });
       entry.status = status;
-      await redis('HSET', key, body.field, JSON.stringify(entry));
 
       let client = await getClient(entry.phone);
       if (!client) client = newClient(entry.phone, entry.phoneRaw, entry.name);
+      // la ficha del cliente solo guarda los turnos que siguen confirmados (así se numera bien el próximo corte)
+      const ref = `${body.date}|${body.field}`;
+      client.refs = (client.refs || []).filter((r) => r !== ref);
+      if (status === 'confirmado') client.refs.push(ref);
       if (prev !== 'atendido' && status === 'atendido') {
-        adjustStamps(client, +1);
+        const g = grantStamp(client, cfg);
         client.lastVisit = entry.date;
+        entry.granted = g;
+        if (g.free) entry.benefit = { kind: 'free', label: cfg.loyalty.reward, number: cfg.loyalty.goal };
+        else if (g.mid) entry.benefit = { kind: 'mid', label: cfg.loyalty.midReward, number: cfg.loyalty.midAt };
       } else if (prev === 'atendido' && status !== 'atendido') {
-        adjustStamps(client, -1);
+        revokeStamp(client, entry.granted, cfg);
+        delete entry.granted;
+        delete entry.benefit;
       }
+      await redis('HSET', key, body.field, JSON.stringify(entry));
       await saveClient(client);
       return send(res, 200, { entry: { field: body.field, ...entry } });
     }
@@ -265,10 +308,13 @@ export default wrap(async (req, res) => {
     case 'stamp': {
       const c = await mustClient(body.phone);
       const delta = Number(body.delta) > 0 ? 1 : -1;
-      adjustStamps(c, delta);
-      if (delta > 0) c.lastVisit = nowLocal(cfg.timezone).date;
+      let granted = null;
+      if (delta > 0) {
+        granted = grantStamp(c, cfg);
+        c.lastVisit = nowLocal(cfg.timezone).date;
+      } else adjustStamps(c, -1);
       await saveClient(c);
-      return send(res, 200, { ok: true, stamps: c.stamps });
+      return send(res, 200, { ok: true, stamps: c.stamps, granted });
     }
 
     case 'redeem': {

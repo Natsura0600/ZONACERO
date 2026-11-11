@@ -1,8 +1,9 @@
 import {
   wrap, send, readBody, getQuery, HttpError, getConfig, publicDays, publicSlots, getDay,
   isValidDate, createBooking, normPhone, getClient, clientBookings, isUpcoming, nowLocal,
-  KEYS, removeRef,
+  KEYS, removeRef, bookingBenefit, benefitAt, cardPos,
 } from './_lib/core.js';
+import { waitUntil } from '@vercel/functions';
 import { redis } from './_lib/db.js';
 import { notify, describeBooking } from './_lib/notify.js';
 import { listGallery, sendPhoto } from './_lib/gallery.js';
@@ -14,15 +15,16 @@ function publicConfig(cfg, gallery) {
     theme: cfg.theme,
     services: cfg.services.filter((s) => s.active).map(({ id, name, desc, price }) => ({ id, name, desc, price })),
     barbers: cfg.barbers.filter((b) => b.active).map(({ id, name }) => ({ id, name })),
-    loyalty: cfg.loyalty,
+    loyalty: (({ enabled, goal, reward, midEnabled, midAt, midReward, text }) => ({ enabled, goal, reward, midEnabled, midAt, midReward, text }))(cfg.loyalty),
     ...publicDays(cfg),
   };
 }
 
-function summary(b) {
+function summary(b, benefit) {
   return {
     code: b.code, date: b.date, time: b.time, serviceName: b.serviceName,
     price: b.price, barberName: b.barberName, status: b.status,
+    benefit: benefit ? { kind: benefit.kind, label: benefit.label, number: benefit.number } : null,
   };
 }
 
@@ -33,13 +35,15 @@ async function cardFor(cfg, phone) {
   const upcoming = (await clientBookings(client))
     .filter((b) => isUpcoming(b, now))
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
-    .map(summary);
+    .map((b) => summary(b, bookingBenefit(cfg, client, b, now)));
   return {
     client: {
       name: String(client.name || '').split(' ')[0],
       stamps: client.stamps || 0,
       visits: client.visits || 0,
       rewards: client.rewards || 0,
+      // beneficio de su próximo corte (si el que sigue es el 5 o el 10 de la tarjeta)
+      next: benefitAt(cfg, cardPos(Math.min(client.stamps || 0, cfg.loyalty.goal - 1) + 1, cfg.loyalty.goal)),
     },
     upcoming,
   };
@@ -69,6 +73,20 @@ export default wrap(async (req, res) => {
 
   if (action === 'book') {
     const { booking } = await createBooking(cfg, body);
+    const now = nowLocal(cfg.timezone);
+    const bookedClient = cfg.loyalty.enabled ? await getClient(booking.phone) : null;
+    const benefit = bookedClient ? bookingBenefit(cfg, bookedClient, booking, now) : null;
+    if (benefit && cfg.loyalty.claim) {
+      // "Reclamá tu beneficio": se encola y se manda por WhatsApp sin hacer esperar al cliente
+      const job = (async () => {
+        try {
+          const { enqueueClaim, flushClaims } = await import('./_lib/claims.js');
+          await enqueueClaim(cfg, booking, benefit);
+          await flushClaims();
+        } catch (e) { console.error('Aviso de beneficio:', e && e.message); }
+      })();
+      try { waitUntil(job); } catch { /* fuera de Vercel el trabajo sigue igual */ }
+    }
     const multi = cfg.barbers.filter((b) => b.active).length > 1;
     await notify(`Nuevo turno: ${booking.name}`, [
       describeBooking(booking),
@@ -76,7 +94,7 @@ export default wrap(async (req, res) => {
       `Cel: ${booking.phoneRaw || booking.phone}`,
     ].join('\n'));
     const card = cfg.loyalty.enabled ? await cardFor(cfg, booking.phone) : null;
-    return send(res, 200, { booking: summary(booking), card });
+    return send(res, 200, { booking: summary(booking, benefit), card });
   }
 
   if (action === 'lookup') {

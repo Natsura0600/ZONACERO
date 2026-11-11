@@ -91,8 +91,11 @@
     const l = cfg.loyalty;
     document.querySelectorAll('[data-loyalty]').forEach((el) => { el.hidden = !l.enabled; });
     $('#loyalty-text').textContent = l.text || '';
-    $('#loyalty-reward').textContent = l.reward;
-    $('#loyalty-goal').textContent = l.goal;
+    $('#perk-goal').textContent = l.goal;
+    $('#perk-reward').textContent = l.reward;
+    $('#perk-mid').hidden = !(l.enabled && l.midEnabled);
+    $('#perk-mid-at').textContent = l.midAt;
+    $('#perk-mid-reward').textContent = l.midReward;
   }
 
   // ---------- galería ----------
@@ -307,6 +310,9 @@
       $('#done-detail').textContent = `${b.serviceName} · ${longDate(b.date)} a las ${b.time} h${state.cfg.barbers.length > 1 ? ' con ' + b.barberName : ''}`;
       $('#done-code').textContent = b.code;
       const ds = $('#done-stamps');
+      const db = $('#done-benefit');
+      db.hidden = !b.benefit;
+      if (b.benefit) db.textContent = `Este turno es tu corte ${b.benefit.number}: ${b.benefit.label}. Avisale al barbero cuando llegues para reclamarlo.`;
       if (r.card && r.card.client) {
         const goal = state.cfg.loyalty.goal;
         const c = r.card.client;
@@ -336,7 +342,27 @@
   });
 
   // ---------- tarjeta ----------
+  const lowerFirst = (s) => String(s || '').charAt(0).toLowerCase() + String(s || '').slice(1);
+  const pctLabel = (txt) => { const m = /(\d{1,3})\s?%/.exec(txt || ''); return m ? m[1] + '%' : 'Premio'; };
+
+  // Qué decir según los sellos: el beneficio del próximo corte, o cuántos cortes faltan.
+  function cardStatus(stamps, l, next) {
+    if (stamps >= l.goal) return `¡Premio listo! ${l.reward}`;
+    const nb = next || nextBenefit(stamps, l);
+    if (nb) return `Tu próximo corte: ${lowerFirst(nb.label)}`;
+    const toMid = l.midEnabled && l.midAt > stamps;
+    const target = toMid ? l.midAt : l.goal;
+    const normal = target - stamps - 1; // cortes comunes antes del que tiene beneficio
+    return `Te ${normal === 1 ? 'falta 1 corte' : 'faltan ' + normal + ' cortes'} para tu ${toMid ? l.midReward : lowerFirst(l.reward)}`;
+  }
+  const nextBenefit = (stamps, l) => {
+    if (stamps + 1 === l.goal) return { kind: 'free', label: l.reward };
+    if (l.midEnabled && stamps + 1 === l.midAt) return { kind: 'mid', label: l.midReward };
+    return null;
+  };
+
   function renderStamps(stamps, goal) {
+    const l = state.cfg ? state.cfg.loyalty : { midEnabled: true, midAt: 5, midReward: '50% off', reward: 'Corte gratis' };
     const box = $('#card-stamps');
     const cols = goal <= 10 ? 5 : goal <= 12 ? 6 : goal <= 16 ? 8 : 10;
     box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -344,7 +370,8 @@
     let html = '';
     for (let i = 1; i <= goal; i++) {
       const on = i <= filled;
-      if (i === goal) html += `<span class="stamp is-prize${on ? ' is-on' : ''}">${on ? SCISSORS : 'Premio'}</span>`;
+      if (i === goal) html += `<span class="stamp is-prize${on ? ' is-on' : ''}">${on ? SCISSORS : (/gratis/i.test(l.reward) ? 'Gratis' : 'Premio')}</span>`;
+      else if (l.midEnabled && i === l.midAt) html += `<span class="stamp is-prize${on ? ' is-on' : ''}">${on ? SCISSORS : pctLabel(l.midReward)}</span>`;
       else html += `<span class="stamp${on ? ' is-on' : ''}">${on ? SCISSORS : ''}</span>`;
     }
     box.innerHTML = html;
@@ -357,7 +384,7 @@
     $('#card').classList.add('is-sample');
     $('#card-who').textContent = 'Ejemplo';
     $('#card-count').textContent = `${n} de ${goal}`;
-    $('#card-status').textContent = `Te faltan ${goal - n} para el premio`;
+    $('#card-status').textContent = cardStatus(n, state.cfg ? state.cfg.loyalty : { goal, midEnabled: true, midAt: 5, midReward: '50% off', reward: 'Corte gratis' }, null);
   }
 
   function renderCard(data, phone) {
@@ -378,12 +405,10 @@
     const c = data.client;
     renderStamps(c.stamps, goal);
     card.classList.remove('is-sample');
-    card.classList.toggle('has-prize', c.stamps >= goal);
+    card.classList.toggle('has-prize', c.stamps >= goal || Boolean(c.next));
     $('#card-who').textContent = c.name || 'Tu tarjeta';
     $('#card-count').textContent = `${Math.min(c.stamps, goal)} de ${goal}`;
-    $('#card-status').textContent = c.stamps >= goal
-      ? `¡Premio listo! ${state.cfg.loyalty.reward}`
-      : `Te ${goal - c.stamps === 1 ? 'falta 1' : 'faltan ' + (goal - c.stamps)} para el premio`;
+    $('#card-status').textContent = cardStatus(c.stamps, state.cfg.loyalty, c.next);
     caption.textContent = c.visits ? `${c.visits} ${c.visits === 1 ? 'visita' : 'visitas'} en total${c.rewards ? ` · ${c.rewards} ${c.rewards === 1 ? 'premio canjeado' : 'premios canjeados'}` : ''}.` : 'Los sellos se suman cuando venís a cortarte.';
 
     mine.hidden = false;
@@ -395,6 +420,7 @@
             <div>
               <div class="mine__when">${esc(fmt(b.date, { weekday: 'long', day: 'numeric', month: 'short' }))} · ${esc(b.time)} h</div>
               <div class="mine__what">${esc(b.serviceName)}${state.cfg.barbers.length > 1 ? ' · ' + esc(b.barberName) : ''}</div>
+              ${b.benefit ? `<div class="mine__benefit">Corte ${b.benefit.number}: ${esc(b.benefit.label)}</div>` : ''}
             </div>
             <button type="button" class="link-btn" data-cancel-open>Cancelar</button>
           </div>

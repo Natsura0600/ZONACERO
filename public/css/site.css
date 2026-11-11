@@ -260,6 +260,7 @@ section { scroll-margin-top: 16px; }
 .done__mark { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid var(--strong-line); border-radius: 50%; }
 .done__detail { margin: 0; font-size: 1.1rem; }
 .done__stamps { margin: 0; color: var(--muted); }
+.done__benefit { margin: 6px 0 0; padding: 14px 18px; max-width: 46ch; border: 1px solid var(--strong-line); background: var(--ink); color: var(--bg); font-weight: 600; }
 .ticket { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0; padding: 22px 40px; border: 1px dashed var(--strong-line); }
 .ticket__label { font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .ticket__code { font-family: var(--font-mono); font-weight: 500; font-size: 2.2rem; letter-spacing: .3em; padding-left: .3em; }
@@ -271,6 +272,10 @@ section { scroll-margin-top: 16px; }
 @media (max-width: 880px) { .loyalty__in { grid-template-columns: minmax(0, 1fr); } }
 .loyalty__lead { font-size: 1.15rem; max-width: 44ch; margin: 22px 0 18px; }
 .loyalty__reward { margin: 0 0 36px; }
+.perks { list-style: none; margin: 0 0 36px; padding: 0; border-top: 1px solid var(--strong-line); max-width: 440px; }
+.perk { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.perk strong { font-family: var(--font-display); font-weight: 800; font-stretch: 112%; font-size: 1.2rem; text-transform: uppercase; letter-spacing: -0.005em; }
+.perk .tag { flex: 0 0 auto; min-width: 5.2em; text-align: center; vertical-align: 0; }
 .tag { display: inline-block; padding: 3px 8px; border: 1px solid var(--strong-line); font-size: .66rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; vertical-align: 2px; }
 .lookup { max-width: 440px; }
 .lookup__row { display: flex; gap: 12px; align-items: flex-end; }
@@ -304,6 +309,7 @@ section { scroll-margin-top: 16px; }
 .mine__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mine__when { font-weight: 600; }
 .mine__what { color: var(--muted); font-size: var(--step--1); }
+.mine__benefit { display: inline-block; margin-top: 6px; padding: 2px 8px; border: 1px solid var(--strong-line); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .link-btn { background: none; border: 0; padding: 4px 0; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; }
 .mine__cancel { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .mine__cancel input { flex: 1; min-width: 120px; min-height: 44px; padding: 8px 0; background: transparent; border: 0; border-bottom: 1px solid var(--strong-line); border-radius: 0; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .2em; outline: none; }

@@ -10,6 +10,7 @@ export const KEYS = {
   secret: 'zc:admin:secret',
   fail: (ip) => `zc:fail:${ip}`,
   bot: 'zc:bot',
+  claimq: 'zc:claimq',
   gallery: 'zc:gallery',
   img: (id) => `zc:img:${id}`,
 };
@@ -53,7 +54,12 @@ export const DEFAULT_CONFIG = {
     enabled: true,
     goal: 10,
     reward: 'Corte gratis',
-    text: 'Cada visita suma un sello. Cuando completás la tarjeta, el próximo corte va por la casa.',
+    midEnabled: true,
+    midAt: 5,
+    midReward: '50% off',
+    claim: true,
+    claimTemplate: '¡Hola {nombre}! Tu turno {cuando} a las {hora} es tu corte {numero} de la tarjeta de {barberia}: {beneficio}. Avisale al barbero cuando llegues para reclamarlo.',
+    text: 'Cada visita suma un sello y te acerca a tus beneficios.',
   },
   reminders: {
     enabled: true,
@@ -195,7 +201,12 @@ export function normalizeConfig(c) {
     barbers: Array.isArray(c.barbers) && c.barbers.length ? c.barbers : d.barbers,
     schedule: { ...d.schedule, ...sch, week: { ...d.schedule.week, ...(sch.week || {}) } },
     closedDates: Array.isArray(c.closedDates) ? c.closedDates : [],
-    loyalty: { ...d.loyalty, ...(c.loyalty || {}) },
+    loyalty: (() => {
+      const l = { ...d.loyalty, ...(c.loyalty || {}) };
+      // el texto de fábrica anterior hablaba de "completar la tarjeta": se pasa al nuevo
+      if (l.text === 'Cada visita suma un sello. Cuando completás la tarjeta, el próximo corte va por la casa.') l.text = d.loyalty.text;
+      return l;
+    })(),
     reminders: { ...d.reminders, ...(c.reminders || {}) },
     timezone: c.timezone || d.timezone,
   };
@@ -262,12 +273,20 @@ export function sanitizeConfig(input) {
       week,
     },
     closedDates: [...new Set(c.closedDates.filter(isValidDate))].sort().slice(-300),
-    loyalty: {
-      enabled: c.loyalty.enabled !== false,
-      goal: clampInt(c.loyalty.goal, 2, 30, 10),
-      reward: clean(c.loyalty.reward, 60) || 'Corte gratis',
-      text: clean(c.loyalty.text, 320),
-    },
+    loyalty: (() => {
+      const goal = clampInt(c.loyalty.goal, 2, 30, 10);
+      return {
+        enabled: c.loyalty.enabled !== false,
+        goal,
+        reward: clean(c.loyalty.reward, 60) || 'Corte gratis',
+        midEnabled: c.loyalty.midEnabled !== false && goal >= 3,
+        midAt: clampInt(c.loyalty.midAt, 1, Math.max(1, goal - 1), Math.min(5, goal - 1)),
+        midReward: clean(c.loyalty.midReward, 60) || '50% off',
+        claim: c.loyalty.claim !== false,
+        claimTemplate: clean(c.loyalty.claimTemplate, 500) || DEFAULT_CONFIG.loyalty.claimTemplate,
+        text: clean(c.loyalty.text, 320),
+      };
+    })(),
     reminders: {
       enabled: c.reminders.enabled !== false,
       hoursBefore: [1, 2, 3, 6, 12, 24].includes(Number(c.reminders.hoursBefore)) ? Number(c.reminders.hoursBefore) : 3,
@@ -454,4 +473,39 @@ export async function removeRef(phone, ref) {
   if (!client) return;
   client.refs = (client.refs || []).filter((r) => r !== ref);
   await saveClient(client);
+}
+
+// ---------- beneficios de la tarjeta ----------
+// Número de corte dentro de la tarjeta (1..goal) para el corte n.º `n` desde el último premio.
+export const cardPos = (n, goal) => ((Math.max(1, n) - 1) % goal) + 1;
+
+// El corte `pos` de la tarjeta: 50% off (midAt) o gratis (último). Si no hay beneficio, null.
+export function benefitAt(cfg, pos) {
+  const l = cfg.loyalty;
+  if (!l.enabled) return null;
+  if (pos === l.goal) return { kind: 'free', label: l.reward, number: pos };
+  if (l.midEnabled && pos === l.midAt) return { kind: 'mid', label: l.midReward, number: pos };
+  return null;
+}
+
+// Beneficio que le toca a un turno, según cuántos sellos tiene y cuántos turnos futuros tiene antes.
+export function bookingBenefit(cfg, client, booking, now) {
+  const refs = (client && client.refs) || [];
+  const key = `${booking.date}|${booking.time}`;
+  const nowKey = `${now.date}|${fromMin(now.minutes)}`;
+  const before = refs.filter((r) => {
+    const k = r.split('|').slice(0, 2).join('|');
+    return k >= nowKey && k < key;
+  }).length;
+  const stamps = Math.min((client && client.stamps) || 0, cfg.loyalty.goal - 1);
+  return benefitAt(cfg, cardPos(stamps + before + 1, cfg.loyalty.goal));
+}
+
+// Precio estimado del turno con el beneficio aplicado (solo si el premio dice un % o "gratis").
+export function benefitPrice(price, benefit) {
+  if (!benefit) return price;
+  const pct = /(\d{1,3})\s?%/.exec(benefit.label || '');
+  if (pct) return Math.round(price * (1 - Math.min(100, Number(pct[1])) / 100));
+  if (/gratis/i.test(benefit.label || '')) return 0;
+  return price;
 }

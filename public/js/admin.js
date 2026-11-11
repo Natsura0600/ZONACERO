@@ -263,7 +263,7 @@
     const day = days.find((d) => d.date === S.ag.sel);
     const bookings = day.entries.filter((e) => !e.blocked);
     const done = bookings.filter((b) => b.status === 'atendido');
-    const expected = bookings.filter((b) => b.status !== 'ausente').reduce((a, b) => a + (b.price || 0), 0);
+    const expected = bookings.filter((b) => b.status !== 'ausente').reduce((a, b) => a + effPrice(b), 0);
     let toggle = '';
     if (day.closedByDate) toggle = '<button class="btn btn--ghost btn--sm" type="button" data-ag="toggle-day">Abrir este día</button>';
     else if (!day.closedByWeek) toggle = '<button class="btn btn--ghost btn--sm" type="button" data-ag="toggle-day">Cerrar este día</button>';
@@ -302,6 +302,16 @@
       if (!cells) return '';
       return `<div class="srow${past ? ' is-past' : ''}"><div class="srow__t">${t}</div><div class="srow__cells">${cells}</div></div>`;
     }).join('');
+  }
+
+  // Precio del turno con el beneficio aplicado (solo si el premio dice un % o "gratis").
+  function effPrice(e) {
+    const b = e.benefit;
+    if (!b) return e.price || 0;
+    const m = /(\d{1,3})\s?%/.exec(b.label || '');
+    if (m) return Math.round((e.price || 0) * (1 - Math.min(100, Number(m[1])) / 100));
+    if (/gratis/i.test(b.label || '')) return 0;
+    return e.price || 0;
   }
 
   function reminderLabel(e) {
@@ -351,10 +361,11 @@
         <span class="pill pill--${esc(e.status)}">${labels[e.status] || esc(e.status)}</span>
       </div>
       <div class="cell__meta">
-        <span>${esc(e.serviceName)} · ${money.format(e.price || 0)}</span>
+        <span>${esc(e.serviceName)} · ${money.format(effPrice(e))}</span>
         ${multi ? `<span>${esc(e.barberName)}</span>` : ''}
         ${wa ? `<a href="${wa}" target="_blank" rel="noopener">${esc(e.phoneRaw || e.phone)}</a>` : `<span>${esc(e.phoneRaw || e.phone)}</span>`}
         <span>Código <span class="cell__code">${esc(e.code)}</span></span>
+        ${e.benefit ? `<span class="cell__benefit">Corte ${e.benefit.number}: ${esc(e.benefit.label)}</span>` : ''}
         ${reminderLabel(e)}
         <span>${e.source === 'panel' ? 'Cargado por vos' : 'Reservó online'}</span>
       </div>
@@ -373,8 +384,12 @@
     b.disabled = true;
     try {
       if (act === 'status') {
-        await api('setStatus', { date, field: b.dataset.field, status: b.dataset.status });
-        if (b.dataset.status === 'atendido') toast('Listo: se sumó un sello.');
+        const r = await api('setStatus', { date, field: b.dataset.field, status: b.dataset.status });
+        if (b.dataset.status === 'atendido') {
+          const g = r.entry && r.entry.granted;
+          toast(g && g.free ? `Listo: ${r.entry.benefit.label}. La tarjeta empieza de nuevo.`
+            : g && g.mid ? `Listo: ${r.entry.benefit.label}.` : 'Listo: se sumó un sello.');
+        }
         S.clients = null;
       } else if (act === 'remove') {
         await api('remove', { date, field: b.dataset.field });
@@ -465,13 +480,22 @@
     }
   }
 
+  // Beneficio del próximo corte de un cliente (el que sigue es el 5 o el 10 de la tarjeta).
+  function nextBenefit(L, stamps) {
+    if (!L.enabled || stamps >= L.goal) return null;
+    if (stamps + 1 === L.goal) return { kind: 'free', label: L.reward };
+    if (L.midEnabled && stamps + 1 === L.midAt) return { kind: 'mid', label: L.midReward };
+    return null;
+  }
+
   function renderClients() {
-    const goal = savedCfg().loyalty.goal;
+    const L = savedCfg().loyalty;
+    const goal = L.goal;
     const all = S.clients || [];
-    const withPrize = all.filter((c) => c.stamps >= goal);
+    const withPrize = all.filter((c) => c.stamps >= goal || nextBenefit(L, c.stamps));
     $('#cl-kpis').innerHTML = [
       [all.length, all.length === 1 ? 'cliente' : 'clientes'],
-      [withPrize.length, 'con premio para canjear'],
+      [withPrize.length, 'con beneficio en su próximo corte'],
       [all.reduce((a, c) => a + (c.visits || 0), 0), 'visitas registradas'],
       [all.reduce((a, c) => a + (c.rewards || 0), 0), 'premios canjeados'],
     ].map(([v, l]) => `<div class="kpi"><div class="kpi__v">${v}</div><div class="kpi__l">${l}</div></div>`).join('');
@@ -491,10 +515,11 @@
     }
     $('#cl-list').innerHTML = list.map((c) => {
       const prize = c.stamps >= goal;
+      const nb = nextBenefit(L, c.stamps);
       const wa = waLink(c.phone);
-      const dots = Array.from({ length: goal }, (_, i) => `<span class="dot${i < Math.min(c.stamps, goal) ? ' is-on' : ''}"></span>`).join('');
+      const dots = Array.from({ length: goal }, (_, i) => `<span class="dot${i < Math.min(c.stamps, goal) ? ' is-on' : ''}${i + 1 === goal || (L.midEnabled && i + 1 === L.midAt) ? ' is-mark' : ''}"></span>`).join('');
       const editing = S.editing === c.phone;
-      return `<div class="client${prize ? ' has-prize' : ''}" data-phone="${esc(c.phone)}">
+      return `<div class="client${prize || nb ? ' has-prize' : ''}" data-phone="${esc(c.phone)}">
         <div>
           <div class="client__name">${esc(c.name)}</div>
           <div class="client__sub">
@@ -504,7 +529,7 @@
           ${c.notes ? `<div class="client__notes">${esc(c.notes)}</div>` : ''}
         </div>
         <div>
-          <div class="dots">${dots}<span class="dots__n">${c.stamps}/${goal}</span>${prize ? ' <span class="pill pill--confirmado">Premio listo</span>' : ''}</div>
+          <div class="dots">${dots}<span class="dots__n">${c.stamps}/${goal}</span>${prize ? ' <span class="pill pill--confirmado">Premio listo</span>' : nb ? ` <span class="pill pill--confirmado">Próximo corte: ${esc(nb.label)}</span>` : ''}</div>
           <div class="client__sub"><span>${c.visits || 0} ${c.visits === 1 ? 'visita' : 'visitas'}</span><span>${c.rewards || 0} ${c.rewards === 1 ? 'premio canjeado' : 'premios canjeados'}</span></div>
         </div>
         <div class="client__actions">
@@ -537,7 +562,13 @@
     if (act === 'redeem' && !confirm(`¿Canjear el premio de ${c.name}? Se descuentan ${savedCfg().loyalty.goal} sellos.`)) return;
     b.disabled = true;
     try {
-      if (act === 'plus' || act === 'minus') await api('stamp', { phone, delta: act === 'plus' ? 1 : -1 });
+      if (act === 'plus' || act === 'minus') {
+        const r = await api('stamp', { phone, delta: act === 'plus' ? 1 : -1 });
+        if (act === 'plus') {
+          const L = savedCfg().loyalty;
+          toast(r.granted && r.granted.free ? `Tarjeta completa: ${L.reward}.` : r.granted && r.granted.mid ? `Sello sumado: ${L.midReward}.` : 'Sello sumado.');
+        }
+      }
       if (act === 'redeem') { await api('redeem', { phone }); toast('Premio canjeado.'); }
       if (act === 'delete') { await api('deleteClient', { phone }); S.editing = ''; toast('Cliente borrado.'); }
       await loadClients();
@@ -692,10 +723,18 @@
         <h2>Tarjeta de sellos</h2>
         <label class="field field--check"><input type="checkbox" data-bind="loyalty.enabled" data-type="bool" ${l.enabled ? 'checked' : ''}><span>Mostrar la tarjeta de sellos en el sitio</span></label>
         <div class="grid3">
-          <label class="field"><span>Sellos para el premio</span><input type="number" min="2" max="30" data-bind="loyalty.goal" data-type="int" value="${l.goal}"></label>
-          ${input('loyalty.reward', 'Premio', l.reward, 60, 'Corte gratis')}
+          <label class="field"><span>Cortes de la tarjeta</span><input type="number" min="2" max="30" data-bind="loyalty.goal" data-type="int" value="${l.goal}"></label>
+          ${input('loyalty.reward', 'Premio del último corte', l.reward, 60, 'Corte gratis')}
+        </div>
+        <label class="field field--check"><input type="checkbox" data-bind="loyalty.midEnabled" data-type="bool" ${l.midEnabled ? 'checked' : ''}><span>Dar un premio a mitad de camino</span></label>
+        <div class="grid3">
+          <label class="field"><span>Corte que lo recibe</span><input type="number" min="1" max="${Math.max(1, l.goal - 1)}" data-bind="loyalty.midAt" data-type="int" value="${l.midAt}"></label>
+          ${input('loyalty.midReward', 'Premio intermedio', l.midReward, 60, '50% off')}
         </div>
         ${area('loyalty.text', 'Cómo funciona (texto para el cliente)', l.text, 320)}
+        <label class="field field--check"><input type="checkbox" data-bind="loyalty.claim" data-type="bool" ${l.claim ? 'checked' : ''}><span>Avisar por WhatsApp cuando saquen el turno de un premio</span></label>
+        ${area('loyalty.claimTemplate', 'Mensaje de “reclamá tu beneficio”', l.claimTemplate, 500)}
+        <p class="muted">Podés usar {nombre}, {cuando}, {hora}, {numero}, {beneficio} y {barberia}. Se manda por el WhatsApp vinculado, en el momento en que el cliente saca el turno del corte 5 y del corte 10.</p>
       </div>
       <div class="block">
         <h2>Color y zona horaria</h2>

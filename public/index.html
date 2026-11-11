@@ -132,6 +132,7 @@
             </div>
             <h3>¡Turno confirmado!</h3>
             <p class="done__detail" id="done-detail"></p>
+            <p class="done__benefit" id="done-benefit" hidden></p>
             <div class="ticket">
               <span class="ticket__label">Código del turno</span>
               <span class="ticket__code" id="done-code">----</span>
@@ -148,8 +149,11 @@
       <div class="wrap loyalty__in">
         <div class="loyalty__text">
           <h2 class="section-title">Tarjeta de sellos</h2>
-          <p class="loyalty__lead" id="loyalty-text">Cada visita suma un sello. Cuando completás la tarjeta, el próximo corte va por la casa.</p>
-          <p class="loyalty__reward"><span class="tag">Premio</span> <strong id="loyalty-reward">Corte gratis</strong> al juntar <strong id="loyalty-goal">10</strong> sellos.</p>
+          <p class="loyalty__lead" id="loyalty-text">Cada visita suma un sello y te acerca a tus beneficios.</p>
+          <ul class="perks" id="perks">
+            <li class="perk" id="perk-mid" hidden><span class="tag">Corte <span id="perk-mid-at">5</span></span><strong id="perk-mid-reward">50% off</strong></li>
+            <li class="perk"><span class="tag">Corte <span id="perk-goal">10</span></span><strong id="perk-reward">Corte gratis</strong></li>
+          </ul>
 
           <form class="lookup" id="lookup-form" novalidate>
             <label class="field">
