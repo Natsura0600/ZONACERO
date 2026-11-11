@@ -168,6 +168,14 @@
   }
   $$('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
+  // En el celular el menú está abajo: se esconde mientras se escribe (teclado abierto).
+  const typing = (el) => el && el.matches && el.matches('input:not([type="checkbox"]):not([type="color"]):not([type="file"]), textarea, select');
+  document.addEventListener('focusin', (ev) => { if (typing(ev.target)) document.body.classList.add('kb-open'); });
+  document.addEventListener('focusout', (ev) => {
+    if (typing(ev.relatedTarget)) return;
+    setTimeout(() => { if (!typing(document.activeElement)) document.body.classList.remove('kb-open'); }, 120);
+  });
+
   function render() {
     if (S.tab === 'agenda') { loadAgenda(); renderNudge(); }
     if (S.tab === 'clientes') S.clients ? renderClients() : loadClients();
